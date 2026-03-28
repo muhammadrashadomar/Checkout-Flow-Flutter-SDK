@@ -1,0 +1,427 @@
+# Checkout Flutter Bridge
+
+A Flutter plugin for integrating Checkout.com payment gateway with support for card tokenization, saved cards, and Google Pay.
+
+[![Flutter](https://img.shields.io/badge/Flutter-3.41+-02569B?logo=flutter)](https://flutter.dev)
+[![Kotlin](https://img.shields.io/badge/Kotlin-2.1.0-7F52FF?logo=kotlin)](https://kotlinlang.org)
+[![Checkout.com](https://img.shields.io/badge/Checkout.com-SDK-00D632)](https://www.checkout.com)
+
+## Features
+
+- 🎯 **Card Tokenization** - Tokenize cards securely using Checkout.com SDK
+- 💾 **Saved Cards** - Support for stored payment methods with CVV verification
+- 💳 **Google Pay** - Native Google Pay integration with tokenization (Android)
+- 🍎 **Apple Pay** - Native Apple Pay integration with tokenization (iOS)
+- 🎨 **Customizable UI** - Full control over card input appearance
+- 🔧 **Dynamic Configuration** - All parameters passed at runtime
+- 🔒 **Secure** - PCI DSS compliant with best practices
+- 📱 **Production Ready** - Comprehensive error handling and logging
+- 🔄 **Cross-Platform** - Supports both Android and iOS
+
+## Installation
+
+Add this to your package's `pubspec.yaml` file:
+
+```yaml
+dependencies:
+  checkout_flutter_bridge:
+    path: ../checkout_flutter_bridge  # Or your package path
+```
+
+Then run:
+
+```bash
+flutter pub get
+```
+
+## Requirements
+
+- **Flutter**: 3.41.0+
+- **Dart**: 3.11.0+
+- **Android**:
+  - `minSdk`: 21
+  - `compileSdk`: 35+
+  - **Kotlin**: 2.0.0+ (Required for Jetpack Compose compiler)
+  - **Gradle**: Compatible with Kotlin 2.0+
+- **iOS**:
+  - `iOS`: 15.0+
+  - **Xcode**: 16.0+
+  - **Swift**: 6.0
+  - **Architecture**: arm64 only for simulator builds
+  - **Distribution**: Swift Package Manager
+
+## Android Setup
+
+### 1. Update `build.gradle`
+
+Add the Checkout.com SDK version to your `android/gradle.properties`:
+
+```properties
+checkout_version=1.2.0
+```
+
+### 2. Update `AndroidManifest.xml`
+
+Add the Google Wallet API metadata:
+
+```xml
+<application>
+    <meta-data 
+        android:name="com.google.android.gms.wallet.api.enabled" 
+        android:value="true" />
+</application>
+```
+
+### 3. Repository Configuration
+
+If you encounter dependency resolution errors for the Checkout.com SDK, ensure the following repositories are added to your project's `android/build.gradle` (root level):
+
+```gradle
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+        maven { url 'https://maven.fpregistry.io/releases' }
+        maven { url 'https://jitpack.io' }
+    }
+}
+```
+
+## iOS Setup
+
+### 1. Enable Flutter Swift Package Manager support
+
+Run this once on the machine that builds the app:
+
+```bash
+flutter config --enable-swift-package-manager
+```
+
+### 2. Resolve Flutter and Swift packages
+
+From the host Flutter app root:
+
+```bash
+flutter pub get
+flutter build ios --debug --no-codesign
+```
+
+`checkout-ios-components` is pulled in transitively by this plugin. You do not need to add it manually in Xcode.
+
+If you are migrating from an older CocoaPods-based version of this plugin, clear the old iOS integration before rebuilding:
+
+```bash
+flutter clean
+rm -rf ios/Pods ios/Podfile.lock ios/.symlinks ios/Flutter/ephemeral/Packages
+flutter pub get
+flutter build ios --debug --no-codesign
+```
+
+If Xcode still reports `framework 'checkout_flutter_bridge' not found`, the host app is still picking up stale Pods-generated linker settings. Remove `ios/Pods` and rebuild so the app links the Swift package instead of the old CocoaPods framework target.
+
+### 3. Configure Apple Pay (Optional)
+
+For detailed Apple Pay setup instructions, see [ios/README.md](ios/README.md).
+
+Quick setup:
+1. Create Apple Merchant ID in Apple Developer Portal
+2. Generate and upload certificate to Checkout.com
+3. Add Apple Pay capability in Xcode
+4. Update `Info.plist` with Apple Pay usage description
+
+### 4. Update Info.plist
+
+Add Apple Pay usage description:
+
+```xml
+<key>NSApplePayUsageDescription</key>
+<string>This app uses Apple Pay to process secure payments</string>
+```
+
+## Quick Start
+
+### 1. Import the Package
+
+```dart
+import 'package:checkout_flutter_bridge/checkout_flutter_bridge.dart';
+```
+
+### 2. Initialize Payment Bridge
+
+```dart
+class PaymentService {
+  final PaymentBridge _paymentBridge = PaymentBridge();
+
+  void initialize() {
+    _paymentBridge.initialize();
+    
+    // Set up callbacks
+    _paymentBridge.onCardTokenized = (result) {
+      print('✅ Token: ${result.token}');
+      print('Card: ${result.scheme} •••• ${result.last4}');
+      // Send token to your backend
+    };
+    
+    _paymentBridge.onPaymentError = (error) {
+      print('❌ Error: ${error.errorMessage}');
+    };
+    
+    _paymentBridge.onSessionData = (data) {
+      print('📊 Session data: $data');
+      // Send to backend for payment processing
+    };
+  }
+}
+```
+
+### 3. Configure Payment Session
+
+Create a payment configuration with credentials from your backend:
+
+```dart
+final config = PaymentConfig(
+  paymentSessionId: "ps_xxx",        // From your backend
+  paymentSessionSecret: "pss_xxx",    // From your backend
+  publicKey: "pk_sbox_xxx",          // Checkout.com public key
+  environment: PaymentEnvironment.sandbox,
+  appearance: AppearanceConfig(
+    borderRadius: 8,
+    colorTokens: ColorTokens(
+      colorAction: 0XFF00639E,
+      colorPrimary: 0XFF111111,
+      colorBorder: 0XFFCCCCCC,
+    ),
+  ),
+);
+```
+
+### 4. Display Card Input
+
+```dart
+class CardInputWidget extends StatelessWidget {
+  final PaymentConfig config;
+
+  const CardInputWidget({required this.config});
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      height: 200,
+      child: CardNativeView(
+        paymentConfig: config,
+        cardConfig: const CardConfig(
+          showCardholderName: false,
+          enableBillingAddress: false,
+        ),
+      ),
+    );
+  }
+}
+```
+
+### 5. Tokenize Card
+
+```dart
+ElevatedButton(
+  onPressed: () async {
+    // Validate card first
+    final isValid = await _paymentBridge.validateCard();
+    
+    if (isValid) {
+      // Trigger tokenization
+      await _paymentBridge.tokenizeCard();
+      // Result will come via onCardTokenized callback
+    } else {
+      print('❌ Invalid card details');
+    }
+  },
+  child: Text('Pay Now'),
+)
+```
+
+## API Reference
+
+### PaymentBridge
+
+Main service class for payment operations.
+
+#### Methods
+
+| Method | Description | Returns |
+|--------|-------------|---------|
+| `initialize()` | Initialize the payment bridge | `void` |
+| `initCardView(config, cardConfig)` | Initialize card input component | `Future<bool>` |
+| `validateCard()` | Validate card input | `Future<bool>` |
+| `tokenizeCard()` | Trigger card tokenization | `Future<void>` |
+| `initStoredCardView(config, savedCardConfig)` | Initialize saved card component | `Future<bool>` |
+| `tokenizeSavedCard()` | Tokenize saved card with CVV | `Future<void>` |
+| `initGooglePay(config, googlePayConfig)` | Initialize Google Pay | `Future<bool>` |
+| `checkGooglePayAvailability()` | Check if Google Pay is available | `Future<bool>` |
+| `tokenizeGooglePayData(paymentData)` | Tokenize Google Pay data | `Future<void>` |
+| `dispose()` | Clean up resources | `void` |
+
+#### Callbacks
+
+```dart
+Function(CardTokenResult)? onCardTokenized;
+Function(PaymentSuccessResult)? onPaymentSuccess;
+Function(PaymentErrorResult)? onPaymentError;
+Function(String)? onSessionData;
+```
+
+### Models
+
+#### PaymentConfig
+
+```dart
+PaymentConfig({
+  required String paymentSessionId,
+  required String paymentSessionSecret,
+  required String publicKey,
+  PaymentEnvironment environment = PaymentEnvironment.sandbox,
+  AppearanceConfig? appearance,
+})
+```
+
+#### CardTokenResult
+
+```dart
+class CardTokenResult {
+  final String token;           // Checkout.com token
+  final String? last4;          // Last 4 digits
+  final String? scheme;         // Card scheme (visa, mastercard, etc.)
+  final int? expiryMonth;       // Expiry month
+  final int? expiryYear;        // Expiry year
+  final String? cardType;       // Card type
+  // ... and more fields
+}
+```
+
+## Advanced Usage
+
+### Saved Cards
+
+```dart
+// Initialize with saved card
+final savedCardConfig = SavedCardConfig(
+  paymentSourceId: "src_xxx",  // From Checkout.com
+  last4: "4242",
+  scheme: "visa",
+  expiryMonth: 12,
+  expiryYear: 2025,
+);
+
+await _payment Bridge.initStoredCardView(config, savedCardConfig);
+
+// Tokenize (requires CVV input)
+await _paymentBridge.tokenizeSavedCard();
+```
+
+### Custom Appearance
+
+```dart
+final appearance = AppearanceConfig(
+  borderRadius: 12,
+  colorTokens: ColorTokens(
+    colorAction: 0XFF4CAF50,       // Green action color
+    colorPrimary: 0XFF212121,      // Dark text
+    colorBorder: 0XFFE0E0E0,       // Light border
+    colorFormBorder: 0XFF9E9E9E,   // Form border
+    colorBackground: 0XFFFFFFFF,   // White background
+  ),
+  fontConfig: FontConfig(
+    fontSize: 16,
+    fontWeight: "normal",
+  ),
+);
+```
+
+### Google Pay Integration
+
+```dart
+// Initialize Google Pay
+final googlePayConfig = GooglePayConfig(
+  merchantId: "your_merchant_id",
+  merchantName: "Your Store",
+  countryCode: "US",
+  currencyCode: "USD",
+  totalPrice: 1000,  // Amount in cents
+);
+
+await _paymentBridge.initGooglePay(config, googlePayConfig);
+
+// Check availability
+final isAvailable = await _paymentBridge.checkGooglePayAvailability();
+
+// Launch Google Pay sheet (implement with your UI)
+// After receiving payment data from Google Pay:
+await _paymentBridge.tokenizeGooglePayData(paymentData);
+```
+
+## Error Handling
+
+```dart
+_paymentBridge.onPaymentError = (error) {
+  switch (error.errorCode) {
+    case 'CARD_NOT_READY':
+      // Card view not initialized
+      break;
+    case 'INVALID_ARGS':
+      // Invalid configuration
+      break;
+    case 'TOKENIZATION_ERROR':
+      // Tokenization failed
+      break;
+    default:
+      print('Error: ${error.errorMessage}');
+  }
+};
+```
+
+## Security Best Practices
+
+1. **Never hardcode credentials** - Always fetch session ID and secret from your backend
+2. **Use HTTPS** - All communication with your backend should be encrypted
+3. **Validate on backend** - Always verify tokens on your server before processing payments
+4. **Handle errors gracefully** - Don't expose sensitive error details to users
+5. **Use production environment** - Only use `PaymentEnvironment.production` in production builds
+
+## Example
+
+See the `example/` directory for a complete working example.
+
+## Troubleshooting
+
+### Card view not showing
+- Verify session credentials are valid and not expired
+- Check that `initCardView()` was called before displaying the view
+- Inspect Android logs for initialization errors
+
+### Tokenization fails
+- Ensure card details are valid
+- Verify the component is fully initialized
+- Check that callbacks are properly set up
+
+### Build errors
+- Ensure `minSdk` is at least 21
+- Verify all dependencies are correctly added
+- Run `flutter clean` and rebuild
+
+## Platform Support
+
+- ✅ Android (21+)
+- ✅ iOS (15+)
+
+## License
+
+MIT License - see LICENSE file for details
+
+## Support
+
+For issues and questions:
+- GitHub Issues: [Report a bug](https://github.com/muhammadrashadomar/checkout_flutter_bridge/issues)
+- Documentation: See `doc/` directory for detailed guides
+
+---
+
+**Built with ❤️ for Flutter developers**
