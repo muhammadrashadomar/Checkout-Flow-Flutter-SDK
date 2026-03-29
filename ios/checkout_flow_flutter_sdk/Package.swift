@@ -3,14 +3,14 @@
 import PackageDescription
 
 let package = Package(
-    name: "checkout_flutter_bridge",
+    name: "checkout_flow_flutter_sdk",
     platforms: [
         .iOS("15.0"),
     ],
     products: [
         .library(
-            name: "checkout-flutter-bridge",
-            targets: ["checkout_flutter_bridge"]
+            name: "checkout-flow-flutter-sdk",
+            targets: ["checkout_flow_flutter_sdk"]
         ),
     ],
     dependencies: [
@@ -26,7 +26,7 @@ let package = Package(
             ]
         ),
         .target(
-            name: "checkout_flutter_bridge",
+            name: "checkout_flow_flutter_sdk",
             dependencies: [
                 .product(name: "FlutterFramework", package: "FlutterFramework"),
                 .target(name: "CheckoutComponentsShim"),

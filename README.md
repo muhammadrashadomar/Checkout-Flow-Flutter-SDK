@@ -24,8 +24,8 @@ Add this to your package's `pubspec.yaml` file:
 
 ```yaml
 dependencies:
-  checkout_flutter_bridge:
-    path: ../checkout_flutter_bridge  # Or your package path
+  checkout_flow_flutter_sdk:
+    path: ../checkout_flow_flutter_sdk  # Or your package path
 ```
 
 Then run:
@@ -117,7 +117,7 @@ flutter pub get
 flutter build ios --debug --no-codesign
 ```
 
-If Xcode still reports `framework 'checkout_flutter_bridge' not found`, the host app is still picking up stale Pods-generated linker settings. Remove `ios/Pods` and rebuild so the app links the Swift package instead of the old CocoaPods framework target.
+If Xcode still reports `framework 'checkout_flow_flutter_sdk' not found`, the host app is still picking up stale Pods-generated linker settings. Remove `ios/Pods` and rebuild so the app links the Swift package instead of the old CocoaPods framework target.
 
 ### 3. Configure Apple Pay (Optional)
 
@@ -143,7 +143,7 @@ Add Apple Pay usage description:
 ### 1. Import the Package
 
 ```dart
-import 'package:checkout_flutter_bridge/checkout_flutter_bridge.dart';
+import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
 ```
 
 ### 2. Initialize Payment Bridge
@@ -419,7 +419,7 @@ MIT License - see LICENSE file for details
 ## Support
 
 For issues and questions:
-- GitHub Issues: [Report a bug](https://github.com/muhammadrashadomar/checkout_flutter_bridge/issues)
+- GitHub Issues: [Report a bug](https://github.com/muhammadrashadomar/checkout_flow_flutter_sdk/issues)
 - Documentation: See `doc/` directory for detailed guides
 
 ---

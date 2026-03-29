@@ -25,7 +25,7 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "1.4.1"
-  checkout_flutter_bridge:
+  checkout_flow_flutter_sdk:
     dependency: "direct main"
     description:
       path: ".."

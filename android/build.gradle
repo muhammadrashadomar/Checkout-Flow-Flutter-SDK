@@ -1,4 +1,4 @@
-group 'com.checkout.flutter.checkout_flutter_bridge'
+group 'com.checkout.flutter.checkout_flow_flutter_sdk'
 version '1.0'
 
 buildscript {
@@ -58,7 +58,7 @@ android {
         minSdk safeExtGet('minSdkVersion', 21)
     }
 
-    namespace 'com.checkout.flutter.checkout_flutter_bridge'
+    namespace 'com.checkout.flutter.checkout_flow_flutter_sdk'
 }
 
 dependencies {

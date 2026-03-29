@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:checkout_flutter_bridge/src/models/card_metadata.dart';
-import 'package:checkout_flutter_bridge/src/models/current_payment_type.dart';
-import 'package:checkout_flutter_bridge/src/models/session_result.dart';
-import 'package:checkout_flutter_bridge/src/utils/console_logger.dart';
+import 'package:checkout_flow_flutter_sdk/src/models/card_metadata.dart';
+import 'package:checkout_flow_flutter_sdk/src/models/current_payment_type.dart';
+import 'package:checkout_flow_flutter_sdk/src/models/session_result.dart';
+import 'package:checkout_flow_flutter_sdk/src/utils/console_logger.dart';
 import 'package:flutter/services.dart';
 
 import '../models/payment_config.dart';

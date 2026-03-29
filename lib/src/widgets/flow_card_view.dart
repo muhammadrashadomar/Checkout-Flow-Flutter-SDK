@@ -1,4 +1,4 @@
-import 'package:checkout_flutter_bridge/checkout_flutter_bridge.dart';
+import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
 import 'package:flutter/material.dart';
 
 /// CheckoutFlowCardView - Complete card payment widget with all callbacks
