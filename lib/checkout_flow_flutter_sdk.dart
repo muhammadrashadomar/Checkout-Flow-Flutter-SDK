@@ -18,3 +18,4 @@ export 'src/utils/console_logger.dart';
 // Export widgets
 export 'src/widgets/flow_card_view.dart';
 export 'src/widgets/flow_google_pay_view.dart';
+export 'src/widgets/flow_apple_pay_view.dart';

@@ -69,6 +69,10 @@ class PaymentErrorHandlingExample extends StatelessWidget {
         );
         break;
 
+      case PaymentErrorCode.applePayCanceled:
+        // Handle cancellation
+        break;
+
       default:
         // Handle all other errors
         _showErrorDialog(
@@ -166,6 +170,7 @@ void errorHandlingQuickReference(PaymentErrorResult error) {
     case PaymentErrorCode.googlepayNotAvailable:
     case PaymentErrorCode.applePayNotReady:
     case PaymentErrorCode.applePayNotAvailable:
+    case PaymentErrorCode.applePayCanceled:
     case PaymentErrorCode.invalidState:
     case PaymentErrorCode.paymentError:
     case PaymentErrorCode.launchError:

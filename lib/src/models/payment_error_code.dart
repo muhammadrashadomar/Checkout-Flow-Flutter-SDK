@@ -20,6 +20,7 @@ enum PaymentErrorCode {
   tokenizationFailed('TOKENIZATION_FAILED'),
   applePayNotReady('APPLEPAY_NOT_READY'),
   applePayNotAvailable('APPLEPAY_NOT_AVAILABLE'),
+  applePayCanceled('APPLE_PAY_CANCELED'),
 
   // Generic errors
   unknown('UNKNOWN');
@@ -101,6 +102,9 @@ enum PaymentErrorCode {
 
       case PaymentErrorCode.applePayNotAvailable:
         return 'Apple Pay is not available on this device.';
+
+      case PaymentErrorCode.applePayCanceled:
+        return 'Apple Pay was canceled.';
 
       case PaymentErrorCode.invalidConfig:
         return 'Payment configuration error. Please contact support.';
