@@ -108,6 +108,9 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
             paymentSessionSecret: sessionSecret
         )
         let callbacks = CheckoutSDK.Callbacks(
+            onReady: { [weak self] _ in
+                self?.sendApplePayReady()
+            },
             onTokenized: { [weak self] result in
                 self?.sendTokenizationResult(result.data)
                 return .accepted
@@ -120,10 +123,8 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
                 self?.sendPaymentSuccess(paymentId)
             },
             onError: { [weak self] error in
+            
                 self?.sendCheckoutError(error, defaultCode: "CHECKOUT_ERROR")
-            },
-            onCancel: { [weak self] in
-                self?.sendError(code: "APPLE_PAY_CANCELED", message: "User dismissed Apple Pay")
             }
         )
 
@@ -157,7 +158,6 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
                 checkoutComponents = checkout
                 applePayComponent = component
                 embedSwiftUIView(component.render())
-                sendApplePayReady()
             } catch let error as CheckoutSDK.Error {
                 sendCheckoutError(error, defaultCode: "INITIALIZATION_FAILED")
             } catch {

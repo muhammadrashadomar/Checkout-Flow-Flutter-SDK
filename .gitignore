@@ -32,6 +32,8 @@ ios/Runner/GeneratedPluginRegistrant.m
 DerivedData/
 *.xcworkspace
 !ios/Runner.xcworkspace
+!example/ios/Runner.xcworkspace/
+!example/ios/Runner.xcworkspace/**
 
 # IDEs
 .idea/

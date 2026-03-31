@@ -2,8 +2,8 @@ import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
 import 'package:flutter/material.dart';
 
 // Google Pay Configuration
-const String paymentSessionId = 'ps_3BezFONExd8ANYwV0b2LCe4zaX8';
-const String paymentSessionSecret = 'pss_26a85719-e197-4cd1-be1d-ca59b5746b48';
+const String paymentSessionId = 'ps_3Bio3xpJeyBH9UKc8b356SqsTHz';
+const String paymentSessionSecret = 'pss_7e2a9914-b55f-469c-8d2c-ee6f24dff8a6';
 const String publicKey = 'pk_sbox_fjizign6afqbt3btt3ialiku74s';
 
 // Payment configuration
