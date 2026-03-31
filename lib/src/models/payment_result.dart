@@ -52,10 +52,9 @@ class CardTokenResult {
     // Handle nested tokenDetails structure (from card component)
     // Need to convert Map<Object?, Object?> to Map<String, dynamic>
     final tokenDetailsRaw = map['tokenDetails'];
-    final tokenDetails =
-        tokenDetailsRaw != null
-            ? Map<String, dynamic>.from(tokenDetailsRaw as Map)
-            : null;
+    final tokenDetails = tokenDetailsRaw != null
+        ? Map<String, dynamic>.from(tokenDetailsRaw as Map)
+        : null;
 
     // If tokenDetails exists, use it; otherwise use direct map (Google Pay)
     final data = tokenDetails ?? map;
@@ -147,8 +146,8 @@ class PaymentErrorResult {
         // Native code sends 'errorCode' and 'errorMessage' keys
         errorCode: code,
         errorMessage:
+            map['sdkErrorCode'] as String? ??
             map['errorMessage'] as String? ??
-            map['message'] as String? ??
             'Unknown error',
         errorType: PaymentErrorCode.fromString(code),
         details: map,

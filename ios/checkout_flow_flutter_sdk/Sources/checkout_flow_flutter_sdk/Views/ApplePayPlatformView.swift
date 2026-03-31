@@ -123,7 +123,6 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
                 self?.sendPaymentSuccess(paymentId)
             },
             onError: { [weak self] error in
-            
                 self?.sendCheckoutError(error, defaultCode: "CHECKOUT_ERROR")
             }
         )
