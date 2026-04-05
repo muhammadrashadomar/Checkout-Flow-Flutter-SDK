@@ -80,6 +80,7 @@ class CheckoutFlowGooglePayView extends StatefulWidget {
 
 class _CheckoutFlowGooglePayViewState extends State<CheckoutFlowGooglePayView> {
   bool _isReady = false;
+  bool _isFailed = false;
   final PaymentBridge _paymentBridge = PaymentBridge();
 
   @override
@@ -115,6 +116,9 @@ class _CheckoutFlowGooglePayViewState extends State<CheckoutFlowGooglePayView> {
     // Error callback handles unavailability - SDK sends GOOGLEPAY_UNAVAILABLE error
     _paymentBridge.onPaymentError = (error) {
       if (mounted) {
+        setState(() {
+          _isFailed = true;
+        });
         // If Google Pay is unavailable, call the onUnavailable callback
         if (error.errorCode == 'GOOGLEPAY_UNAVAILABLE' ||
             error.errorCode == 'GOOGLEPAY_NOT_AVAILABLE') {
@@ -142,8 +146,12 @@ class _CheckoutFlowGooglePayViewState extends State<CheckoutFlowGooglePayView> {
             googlePayConfig: widget.googlePayConfig,
           ),
         ),
+
+        if (_isFailed)
+          SizedBox.shrink()
         // Loader - shown until Google Pay button is ready
-        if (!_isReady && widget.loader != null) widget.loader!,
+        else if (!_isReady && widget.loader != null)
+          widget.loader!,
       ],
     );
   }

@@ -49,6 +49,17 @@ enum PaymentErrorCode {
         this == tokenizationFailed;
   }
 
+  bool get isApplePayError {
+    return this == applePayNotReady ||
+        this == applePayNotAvailable ||
+        this == invalidConfig ||
+        this == initializationFailed ||
+        this == timeout ||
+        this == invalidState ||
+        this == tokenizationFailed ||
+        this == applePayCanceled;
+  }
+
   /// Check if this is a card payment specific error
   bool get isCardError {
     return this == cardNotReady ||

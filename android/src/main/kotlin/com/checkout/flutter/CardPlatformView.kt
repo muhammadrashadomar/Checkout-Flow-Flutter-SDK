@@ -14,6 +14,7 @@ import com.checkout.components.interfaces.component.CheckoutComponentConfigurati
 import com.checkout.components.interfaces.component.ComponentCallback
 import com.checkout.components.interfaces.component.ComponentOption
 import com.checkout.components.interfaces.component.PaymentButtonAction
+import com.checkout.components.interfaces.component.RememberMeConfiguration
 import com.checkout.components.interfaces.error.CheckoutError
 import com.checkout.components.interfaces.model.ApiCallResult
 import com.checkout.components.interfaces.model.CallbackResult
@@ -126,7 +127,8 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
                                                                 if (showCardholderName)
                                                                         CardholderNamePosition.TOP
                                                                 else CardholderNamePosition.HIDDEN
-                                                )
+                                                ),
+                                        rememberMeConfiguration = RememberMeConfiguration(showPayButton = false)
                                 )
                         }
 

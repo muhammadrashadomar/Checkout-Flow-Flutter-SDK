@@ -61,6 +61,9 @@ class CheckoutFlowCardView extends StatefulWidget {
   /// Callback when any payment error occurs
   final Function(PaymentErrorResult)? onError;
 
+  /// Callback when the card view height changes
+  final Function(double)? onHeightChanged;
+
   /// Custom loader widget to show while card is initializing
   /// Defaults to CircularProgressIndicator if not provided
   final Widget? loader;
@@ -78,6 +81,7 @@ class CheckoutFlowCardView extends StatefulWidget {
     this.onPaymentSuccess,
     this.onSessionData,
     this.onError,
+    this.onHeightChanged,
     this.loader,
     this.height = 300,
   });
@@ -88,6 +92,7 @@ class CheckoutFlowCardView extends StatefulWidget {
 
 class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
   bool _isReady = false;
+  bool _isFailed = false;
   late double _height;
   final PaymentBridge _paymentBridge = PaymentBridge();
 
@@ -159,6 +164,9 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
     if (widget.onError != null) {
       _paymentBridge.onPaymentError = (error) {
         if (mounted) {
+          setState(() {
+            _isFailed = true;
+          });
           widget.onError?.call(error);
         }
       };
@@ -170,6 +178,8 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
         setState(() {
           _height = height;
         });
+
+        widget.onHeightChanged?.call(_height);
       }
     };
   }
@@ -185,6 +195,7 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
   Widget build(BuildContext context) {
     // Card is ready, show the native view
     return Stack(
+      alignment: Alignment.topCenter,
       children: [
         SizedBox(
           height: _height,
@@ -193,8 +204,12 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
             cardConfig: widget.cardConfig,
           ),
         ),
+
+        if (_isFailed)
+          SizedBox.shrink()
         // Loader
-        if (!_isReady && widget.loader != null) widget.loader!,
+        else if (!_isReady && widget.loader != null)
+          widget.loader!,
       ],
     );
   }

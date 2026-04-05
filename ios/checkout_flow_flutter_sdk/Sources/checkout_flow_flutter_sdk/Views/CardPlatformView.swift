@@ -12,6 +12,8 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     private var checkoutComponents: CheckoutSDK?
     private var cardComponent: CheckoutActionable?
     private var hasSentReady = false
+    private var displayLink: CADisplayLink?
+    private var lastReportedHeight: CGFloat = 0
 
     init(
         frame: CGRect,
@@ -29,6 +31,10 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
         super.init()
 
         initializeComponent()
+    }
+
+    deinit {
+        stopDisplayLink()
     }
 
     func view() -> UIView {
@@ -98,9 +104,11 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
         let appearance = checkoutDesignTokens(from: args)
         let cardConfiguration = checkoutCardConfiguration(from: args)
         let callbacks = CheckoutSDK.Callbacks(
+            handleTap: { paymentMethod async -> Bool in
+                return true
+            },
             onChange: { [weak self] component in
                 self?.sendValidationState(isValid: component.isValid)
-                self?.notifyHeightChanged()
             },
             onCardBinChanged: { [weak self] metadata in
                 self?.sendCardBinChanged(metadata)
@@ -134,14 +142,16 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
                     publicKey: publicKey,
                     environment: checkoutEnvironment(from: args["environment"] as? String),
                     appearance: appearance,
-                    callbacks: callbacks
+                    callbacks: callbacks,
                 )
                 let checkout = CheckoutSDK(configuration: configuration)
                 let component = try checkout.create(
                     .card(
                         showPayButton: false,
                         paymentButtonAction: .tokenization,
-                        cardConfiguration: cardConfiguration
+                        cardConfiguration: cardConfiguration,
+                        rememberMeConfiguration: CheckoutSDK.RememberMeConfiguration(
+                            showPayButton: false)
                     )
                 )
 
@@ -158,7 +168,6 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
                 embedSwiftUIView(component.render())
                 sendCardReadyIfNeeded()
                 sendValidationState(isValid: component.isValid)
-                notifyHeightChanged()
             } catch let error as CheckoutSDK.Error {
                 sendCheckoutError(error, defaultCode: "INIT_ERROR")
             } catch {
@@ -171,12 +180,57 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     private func embedSwiftUIView(_ view: AnyView) {
         let hostingController = UIHostingController(rootView: view)
         hostingController.view.backgroundColor = .clear
-        hostingController.view.frame = containerView.bounds
-        hostingController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
 
         containerView.addSubview(hostingController.view)
         self.hostingController = hostingController
+
+        NSLayoutConstraint.activate([
+            hostingController.view.topAnchor.constraint(equalTo: containerView.topAnchor),
+            hostingController.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            hostingController.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+        ])
+
+        startDisplayLink()
     }
+
+    // MARK: - CADisplayLink height polling
+    //
+    // Flutter owns the container frame, so KVO on the hosting controller's bounds
+    // never fires — the frame stays locked to whatever Flutter gave it.
+    // Instead, we poll sizeThatFits every frame and notify Flutter only when
+    // the natural content height actually changes (e.g. remember-me expand/collapse).
+
+    private func startDisplayLink() {
+        let link = CADisplayLink(target: self, selector: #selector(checkHeight))
+        link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60)
+        link.add(to: .main, forMode: .common)
+        displayLink = link
+    }
+
+    private func stopDisplayLink() {
+        displayLink?.invalidate()
+        displayLink = nil
+    }
+
+    @objc private func checkHeight() {
+        guard let hostingController else { return }
+
+        let width =
+            containerView.bounds.width > 0
+            ? containerView.bounds.width
+            : UIScreen.main.bounds.width
+
+        let targetSize = CGSize(width: width, height: UIView.layoutFittingCompressedSize.height)
+        let size = hostingController.sizeThatFits(in: targetSize)
+
+        guard size.height > 0, size.height != lastReportedHeight else { return }
+
+        lastReportedHeight = size.height
+        invokeMethod("heightChanged", arguments: ["height": size.height])
+    }
+
+    // MARK: - Flutter channel senders
 
     private func sendCardTokenized(_ tokenDetails: CheckoutSDK.TokenDetails) {
         invokeMethod(
@@ -190,10 +244,7 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     }
 
     private func sendCardReadyIfNeeded() {
-        guard !hasSentReady else {
-            return
-        }
-
+        guard !hasSentReady else { return }
         hasSentReady = true
         invokeMethod("cardReady", arguments: nil)
     }
@@ -204,7 +255,6 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
 
     private func sendCardBinChanged(_ metadata: CheckoutCardMetadata) {
         invokeMethod("cardBinChanged", arguments: checkoutCardMetadataMap(metadata))
-        notifyHeightChanged()
     }
 
     private func sendPaymentSuccess(_ paymentId: String) {
@@ -223,27 +273,6 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
             "paymentError",
             arguments: checkoutErrorPayload(code: code, message: message)
         )
-        notifyHeightChanged()
-    }
-
-    private func notifyHeightChanged() {
-        guard let hostingController = hostingController else { return }
-        
-        // Dispatching with a small delay to ensure SwiftUI has finished its layout cycle
-        // for error messages appearing/disappearing.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) { [weak self] in
-            guard let self = self else { return }
-            
-            self.hostingController?.view.layoutIfNeeded()
-            
-            let targetSize = CGSize(
-                width: self.containerView.bounds.width > 0 ? self.containerView.bounds.width : UIScreen.main.bounds.width,
-                height: UIView.layoutFittingCompressedSize.height
-            )
-            
-            let size = hostingController.sizeThatFits(in: targetSize)
-            self.invokeMethod("heightChanged", arguments: ["height": size.height])
-        }
     }
 
     private func invokeMethod(_ method: String, arguments: Any?) {

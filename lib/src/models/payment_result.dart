@@ -162,6 +162,9 @@ class PaymentErrorResult {
   /// Check if this is a Google Pay error
   bool get isGooglePayError => errorType.isGooglePayError;
 
+  /// Check if this is an Apple Pay error
+  bool get isApplePayError => errorType.isApplePayError;
+
   /// Check if this is a card payment error
   bool get isCardError => errorType.isCardError;
 

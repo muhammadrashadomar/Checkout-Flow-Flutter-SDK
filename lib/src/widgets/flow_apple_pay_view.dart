@@ -81,6 +81,7 @@ class CheckoutFlowApplePayView extends StatefulWidget {
 
 class _CheckoutFlowApplePayViewState extends State<CheckoutFlowApplePayView> {
   bool _isReady = false;
+  bool _isFailed = false;
   final PaymentBridge _paymentBridge = PaymentBridge();
 
   @override
@@ -116,6 +117,9 @@ class _CheckoutFlowApplePayViewState extends State<CheckoutFlowApplePayView> {
     // Error callback handles unavailability - SDK sends APPLEPAY_UNAVAILABLE error
     _paymentBridge.onPaymentError = (error) {
       if (mounted) {
+        setState(() {
+          _isFailed = true;
+        });
         // If Apple Pay is unavailable, call the onUnavailable callback
         if (error.errorCode == 'APPLEPAY_UNAVAILABLE' ||
             error.errorCode == 'APPLEPAY_NOT_AVAILABLE') {
@@ -143,8 +147,12 @@ class _CheckoutFlowApplePayViewState extends State<CheckoutFlowApplePayView> {
             applePayConfig: widget.applePayConfig,
           ),
         ),
+
+        if (_isFailed)
+          SizedBox.shrink()
         // Loader - shown until Apple Pay button is ready
-        if (!_isReady && widget.loader != null) widget.loader!,
+        else if (!_isReady && widget.loader != null)
+          widget.loader!,
       ],
     );
   }
