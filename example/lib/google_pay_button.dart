@@ -6,12 +6,12 @@ class CheckoutGooglePayView extends StatelessWidget {
 
   final PaymentConfig paymentConfig;
 
-  static const GooglePayConfig _googlePayConfig = GooglePayConfig(
+  static final GooglePayConfig _googlePayConfig = GooglePayConfig(
     merchantId: '01234567890123456789',
     merchantName: 'Demo Store',
-    countryCode: 'US',
-    currencyCode: 'USD',
-    totalPrice: 100,
+    countryCode: 'KW',
+    currencyCode: 'KWD',
+    totalPrice: 1000,
   );
 
   @override

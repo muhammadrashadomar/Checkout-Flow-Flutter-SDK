@@ -11,6 +11,7 @@ class CheckoutApplePayView extends StatelessWidget {
     merchantName: 'Demo Store',
     countryCode: 'US',
     currencyCode: 'USD',
+    amount: 1000 * 100,
   );
 
   @override
@@ -72,7 +73,7 @@ class CheckoutApplePayView extends StatelessWidget {
                     ],
                   ),
                   backgroundColor: backgroundColor,
-                  duration: const Duration(seconds: 5),
+                  duration: const Duration(seconds: 1),
                 ),
               );
             }

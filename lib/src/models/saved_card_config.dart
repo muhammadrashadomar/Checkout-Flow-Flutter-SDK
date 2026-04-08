@@ -25,17 +25,17 @@ class SavedCardConfig {
   });
 
   Map<String, dynamic> toMap() => {
-        'paymentSourceId': paymentSourceId,
-        'last4': last4,
-        'scheme': scheme,
-        'expiryMonth': expiryMonth,
-        'expiryYear': expiryYear,
-        if (cardholderName != null) 'cardholderName': cardholderName,
-        if (bin != null) 'bin': bin,
-        if (issuer != null) 'issuer': issuer,
-        if (issuerCountryCode != null) 'issuerCountry': issuerCountryCode,
-        if (issuerCountryName != null) 'issuerCountryName': issuerCountryName,
-      };
+    'paymentSourceId': paymentSourceId,
+    'last4': last4,
+    'scheme': scheme,
+    'expiryMonth': expiryMonth,
+    'expiryYear': expiryYear,
+    if (cardholderName != null) 'cardholderName': cardholderName,
+    if (bin != null) 'bin': bin,
+    if (issuer != null) 'issuer': issuer,
+    if (issuerCountryCode != null) 'issuerCountry': issuerCountryCode,
+    if (issuerCountryName != null) 'issuerCountryName': issuerCountryName,
+  };
 
   @override
   String toString() {

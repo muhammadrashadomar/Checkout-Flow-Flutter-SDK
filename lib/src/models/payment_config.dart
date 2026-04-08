@@ -1,3 +1,5 @@
+import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
+
 /// Payment configuration models for platform channels
 class PaymentConfig {
   final String paymentSessionId;
@@ -109,7 +111,7 @@ class GooglePayConfig {
   final String merchantName;
   final String countryCode;
   final String currencyCode;
-  final int totalPrice;
+  final double totalPrice;
   final String totalPriceLabel;
 
   const GooglePayConfig({
@@ -127,7 +129,7 @@ class GooglePayConfig {
       'merchantName': merchantName,
       'countryCode': countryCode,
       'currencyCode': currencyCode,
-      'totalPrice': totalPrice,
+      'totalPrice': AmountUtils.toRawAmount(totalPrice, currencyCode),
       'totalPriceLabel': totalPriceLabel,
     };
   }
@@ -141,12 +143,14 @@ class ApplePayConfig {
   final String merchantName;
   final String countryCode;
   final String currencyCode;
+  final int amount;
 
   const ApplePayConfig({
     required this.merchantIdentifier,
     required this.merchantName,
     required this.countryCode,
     required this.currencyCode,
+    required this.amount,
   });
 
   Map<String, dynamic> toMap() {
@@ -155,6 +159,7 @@ class ApplePayConfig {
       'merchantName': merchantName,
       'countryCode': countryCode,
       'currencyCode': currencyCode,
+      'amount': amount,
     };
   }
 }

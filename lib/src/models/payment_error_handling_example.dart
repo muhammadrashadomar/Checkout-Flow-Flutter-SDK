@@ -113,25 +113,24 @@ class PaymentErrorHandlingExample extends StatelessWidget {
   }) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(title),
-            content: Text(message),
-            actions: [
-              if (showRetry)
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // Implement retry logic
-                  },
-                  child: const Text('Retry'),
-                ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          if (showRetry)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Implement retry logic
+              },
+              child: const Text('Retry'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
           ),
+        ],
+      ),
     );
   }
 }

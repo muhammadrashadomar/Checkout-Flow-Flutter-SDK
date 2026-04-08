@@ -109,7 +109,9 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
         )
         let callbacks = CheckoutSDK.Callbacks(
             onReady: { [weak self] _ in
-                self?.sendApplePayReady()
+                Task { @MainActor in
+                    self?.handleOnReady()
+                }
             },
             onTokenized: { [weak self] result in
                 self?.sendTokenizationResult(result.data)
@@ -156,6 +158,7 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
 
                 checkoutComponents = checkout
                 applePayComponent = component
+
                 embedSwiftUIView(component.render())
             } catch let error as CheckoutSDK.Error {
                 sendCheckoutError(error, defaultCode: "INITIALIZATION_FAILED")
@@ -214,4 +217,34 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
     private func sendApplePayReady() {
         invokeMethod("applePayReady", arguments: nil)
     }
+
+    @MainActor
+    private func handleOnReady() {
+        sendApplePayReady()
+
+        let applePayConfig = args["applePayConfig"] as? [String: Any]
+        guard let amount = applePayConfig?["amount"] as? Int else {
+            sendError(code: "INVALID_CONFIG", message: "Missing amount in applePayConfig")
+            return
+        }
+        updatePaymentAmount(amount: amount)
+    }
+
+    // Calling .update(with:) function just updates the UI,
+    // for updating the payment session you have to provide handleSubmit callback.
+    /// Updates the payment amount in the SDK to reflect on the Apple Pay sheet.
+    /// - Parameter amount: The amount in cents.
+    @MainActor
+    private func updatePaymentAmount(amount: Int) {
+        do {
+            let updateDetails = CheckoutSDK.UpdateDetails(amount: amount)
+            try checkoutComponents?.update(with: updateDetails)
+        } catch {
+            sendError(
+                code: "UPDATE_AMOUNT_FAILED",
+                message: "Failed to update Apple Pay amount: \(error.localizedDescription)"
+            )
+        }
+    }
+
 }

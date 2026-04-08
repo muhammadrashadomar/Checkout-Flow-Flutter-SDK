@@ -5,8 +5,5 @@ class SessionResult {
   final CardTokenResult token;
   final String sessionData;
 
-  SessionResult({
-    required this.token,
-    required this.sessionData,
-  });
+  SessionResult({required this.token, required this.sessionData});
 }

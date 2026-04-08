@@ -20,6 +20,7 @@ import com.checkout.components.interfaces.model.ApiCallResult
 import com.checkout.components.interfaces.model.CallbackResult
 import com.checkout.components.interfaces.model.PaymentMethodName
 import com.checkout.components.interfaces.model.PaymentSessionResponse
+import com.checkout.components.interfaces.model.UpdateDetails
 import com.checkout.components.wallet.wrapper.GooglePayFlowCoordinator
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
@@ -57,6 +58,7 @@ class GooglePayPlatformView(
 
     private lateinit var checkoutComponents: CheckoutComponents
     private lateinit var googlePayComponent: PaymentMethodComponent
+    private var params: Map<*, *>? = args as? Map<*, *>
     private lateinit var coordinator: GooglePayFlowCoordinator
 
     private val isInitialized = AtomicBoolean(false)
@@ -73,7 +75,7 @@ class GooglePayPlatformView(
      */
     private fun initializeGooglePay(args: Any?) {
         // Validate and parse arguments
-        val params = args as? Map<*, *>
+        val params = this.params
         if (params == null) {
             Log.e(TAG, "Initialization failed: Invalid arguments")
             sendError(ErrorCode.INVALID_CONFIG, "Configuration parameters are required")
@@ -192,6 +194,13 @@ class GooglePayPlatformView(
                             
                             // Notify Flutter that Google Pay button is ready
                             sendGooglePayReady()
+
+                            // Update payment amount if provided in configuration
+                            val googlePayConfig = params["googlePayConfig"] as? Map<*, *>
+                            val amount = googlePayConfig?.get("totalPrice") as? Int
+                            if (amount != null) {
+                                updatePaymentAmount(amount)
+                            }
                         }
                     } else {
                         throw GooglePayException(
@@ -248,6 +257,31 @@ class GooglePayPlatformView(
         } catch (e: Exception) {
             Log.e(TAG, "Error handling activity result", e)
             sendError(ErrorCode.PAYMENT_ERROR, "Failed to process payment result: ${e.message}")
+        }
+    }
+
+    /**
+     * Update Google Pay payment amount dynamically
+     *
+     * @param amount The amount in cents.
+     */
+    private fun updatePaymentAmount(amount: Int) {
+        if (!::googlePayComponent.isInitialized) return
+
+        try {
+            // Extract currency from configuration
+            val googlePayConfig = this.params?.get("googlePayConfig") as? Map<*, *>
+            val currency = googlePayConfig?.get("currencyCode") as? String ?: "USD"
+
+            Log.d(TAG, "Updating Google Pay amount to: $amount $currency")
+            val updateDetails = UpdateDetails(amount = amount, currency = currency)
+            googlePayComponent.update(updateDetails)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update Google Pay amount", e)
+            sendError(
+                ErrorCode.PAYMENT_ERROR,
+                "Failed to update Google Pay amount: ${e.message}"
+            )
         }
     }
 
