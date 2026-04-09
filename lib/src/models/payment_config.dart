@@ -143,7 +143,7 @@ class ApplePayConfig {
   final String merchantName;
   final String countryCode;
   final String currencyCode;
-  final int amount;
+  final double amount;
 
   const ApplePayConfig({
     required this.merchantIdentifier,
@@ -159,7 +159,7 @@ class ApplePayConfig {
       'merchantName': merchantName,
       'countryCode': countryCode,
       'currencyCode': currencyCode,
-      'amount': amount,
+      'amount': AmountUtils.toRawAmount(amount, currencyCode),
     };
   }
 }

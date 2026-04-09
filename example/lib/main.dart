@@ -7,8 +7,8 @@ import 'package:example/google_pay_button.dart';
 import 'package:flutter/material.dart';
 
 // Google Pay Configuration
-const String paymentSessionId = 'ps_3BrPPmAXSyXrUawNd1YTEiTve2y';
-const String paymentSessionSecret = 'pss_daeec324-ab7d-4a6f-ae27-562239a8da7a';
+const String paymentSessionId = 'ps_3C7d0pTSDCBPIpUchzYlWzj7rpP';
+const String paymentSessionSecret = 'pss_1b508233-9e1f-4f4f-8d27-f22d848b7059';
 const String publicKey = 'pk_sbox_fjizign6afqbt3btt3ialiku74s';
 
 // Payment configuration
