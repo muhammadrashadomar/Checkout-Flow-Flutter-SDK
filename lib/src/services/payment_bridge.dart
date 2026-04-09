@@ -34,6 +34,8 @@ class PaymentBridge {
   Function(bool)? onValidationChanged;
   Function(CardMetadata)? onCardBinChanged;
   Function(double)? onHeightChanged;
+  Function()? onSubmitted;
+  Function()? onDismissed;
 
   /// Initialize the payment bridge and set up method call handler
   void initialize() {
@@ -87,6 +89,13 @@ class PaymentBridge {
 
       case 'heightChanged':
         _handleHeightChanged(call.arguments);
+        break;
+      case 'onSubmit':
+        _handleOnSubmit();
+        break;
+
+      case 'onDismissed':
+        _handleOnDismissed();
         break;
 
       default:
@@ -211,6 +220,16 @@ class PaymentBridge {
     } catch (e) {
       ConsoleLogger.error('Error processing height change: $e');
     }
+  }
+
+  void _handleOnSubmit() {
+    ConsoleLogger.debug('Payment sheet submitted');
+    onSubmitted?.call();
+  }
+
+  void _handleOnDismissed() {
+    ConsoleLogger.debug('Payment sheet dismissed');
+    onDismissed?.call();
   }
 
   // ==================== CARD METHODS ====================
@@ -674,6 +693,8 @@ class PaymentBridge {
     onValidationChanged = null;
     onCardBinChanged = null;
     onHeightChanged = null;
+    onSubmitted = null;
+    onDismissed = null;
   }
 
   /// Clear payment type tracker

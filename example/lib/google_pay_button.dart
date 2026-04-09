@@ -35,6 +35,15 @@ class CheckoutGooglePayView extends StatelessWidget {
           onSessionData: (String sessionData) {
             ConsoleLogger.success('[Flow-Card] Session data ready');
           },
+
+          onSubmitted: () {
+            ConsoleLogger.success('[Flow-Card] Submitted');
+          },
+
+          onDismissed: () {
+            ConsoleLogger.success('[Flow-Card] Dismissed');
+          },
+
           onError: (PaymentErrorResult error) {
             // Example: Using the error type enum for better error handling
             ConsoleLogger.error(

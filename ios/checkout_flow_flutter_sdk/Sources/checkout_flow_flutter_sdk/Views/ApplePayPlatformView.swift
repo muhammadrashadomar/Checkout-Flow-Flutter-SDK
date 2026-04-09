@@ -113,6 +113,9 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
                     self?.handleOnReady()
                 }
             },
+            onSubmit: { [weak self] _ in
+                self?.sendOnSubmit()
+            },
             onTokenized: { [weak self] result in
                 self?.sendTokenizationResult(result.data)
                 return .accepted
@@ -216,6 +219,10 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
 
     private func sendApplePayReady() {
         invokeMethod("applePayReady", arguments: nil)
+    }
+
+    private func sendOnSubmit() {
+        invokeMethod("onSubmit", arguments: nil)
     }
 
     @MainActor

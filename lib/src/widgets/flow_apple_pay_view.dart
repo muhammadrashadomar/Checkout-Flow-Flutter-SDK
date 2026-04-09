@@ -49,6 +49,12 @@ class CheckoutFlowApplePayView extends StatefulWidget {
   /// Callback when Apple Pay is not available on this device
   final Function()? onUnavailable;
 
+  /// Callback when calculation/submission starts (before sheet opens)
+  final Function()? onSubmitted;
+
+  /// Callback when the payment sheet is dismissed by the user
+  final Function()? onDismissed;
+
   /// Widget to show when Apple Pay is not available
   /// If not provided and Apple Pay is unavailable, widget returns SizedBox.shrink()
   final Widget? unavailableWidget;
@@ -69,6 +75,8 @@ class CheckoutFlowApplePayView extends StatefulWidget {
     this.onSessionData,
     this.onError,
     this.onUnavailable,
+    this.onSubmitted,
+    this.onDismissed,
     this.unavailableWidget,
     this.loader,
     this.height = 50,
@@ -112,6 +120,14 @@ class _CheckoutFlowApplePayViewState extends State<CheckoutFlowApplePayView> {
 
     _paymentBridge.onSessionData = (sessionData) {
       if (mounted) widget.onSessionData?.call(sessionData);
+    };
+
+    _paymentBridge.onSubmitted = () {
+      if (mounted) widget.onSubmitted?.call();
+    };
+
+    _paymentBridge.onDismissed = () {
+      if (mounted) widget.onDismissed?.call();
     };
 
     // Error callback handles unavailability - SDK sends APPLEPAY_UNAVAILABLE error

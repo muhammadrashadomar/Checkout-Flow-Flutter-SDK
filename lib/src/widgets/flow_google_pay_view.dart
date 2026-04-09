@@ -48,6 +48,12 @@ class CheckoutFlowGooglePayView extends StatefulWidget {
   /// Callback when Google Pay is not available on this device
   final Function()? onUnavailable;
 
+  /// Callback when calculation/submission starts (before sheet opens)
+  final Function()? onSubmitted;
+
+  /// Callback when the payment sheet is dismissed by the user
+  final Function()? onDismissed;
+
   /// Widget to show when Google Pay is not available
   /// If not provided and Google Pay is unavailable, widget returns SizedBox.shrink()
   final Widget? unavailableWidget;
@@ -68,6 +74,8 @@ class CheckoutFlowGooglePayView extends StatefulWidget {
     this.onSessionData,
     this.onError,
     this.onUnavailable,
+    this.onSubmitted,
+    this.onDismissed,
     this.unavailableWidget,
     this.loader,
     this.height = 50,
@@ -111,6 +119,14 @@ class _CheckoutFlowGooglePayViewState extends State<CheckoutFlowGooglePayView> {
 
     _paymentBridge.onSessionData = (sessionData) {
       if (mounted) widget.onSessionData?.call(sessionData);
+    };
+
+    _paymentBridge.onSubmitted = () {
+      if (mounted) widget.onSubmitted?.call();
+    };
+
+    _paymentBridge.onDismissed = () {
+      if (mounted) widget.onDismissed?.call();
     };
 
     // Error callback handles unavailability - SDK sends GOOGLEPAY_UNAVAILABLE error
