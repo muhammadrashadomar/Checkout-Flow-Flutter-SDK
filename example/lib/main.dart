@@ -7,8 +7,8 @@ import 'package:example/google_pay_button.dart';
 import 'package:flutter/material.dart';
 
 // Google Pay Configuration
-const String paymentSessionId = 'ps_3C7d0pTSDCBPIpUchzYlWzj7rpP';
-const String paymentSessionSecret = 'pss_1b508233-9e1f-4f4f-8d27-f22d848b7059';
+const String paymentSessionId = 'ps_3CGmmZxGq8mccgzzEfGEZlIWjQP';
+const String paymentSessionSecret = 'pss_e31b0dd5-0b02-4e9c-a96c-407c9a0e87bd';
 const String publicKey = 'pk_sbox_fjizign6afqbt3btt3ialiku74s';
 
 // Payment configuration
@@ -17,6 +17,7 @@ final _paymentConfig = PaymentConfig(
   paymentSessionSecret: paymentSessionSecret,
   publicKey: publicKey,
   environment: PaymentEnvironment.sandbox,
+
   appearance: AppearanceConfig(
     borderRadius: 8,
     colorTokens: ColorTokens(
@@ -43,6 +44,12 @@ class MyApp extends StatelessWidget {
       debugShowCheckedModeBanner: false,
       title: 'Payment Integration',
       theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+      builder: (context, child) {
+        return GestureDetector(
+          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+          child: child,
+        );
+      },
       home: const PaymentScreen(),
     );
   }

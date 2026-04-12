@@ -175,9 +175,9 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
     // Height changes
     _paymentBridge.onHeightChanged = (height) {
       if (mounted) {
-        setState(() {
-          _height = height;
-        });
+        // setState(() {
+        //   _height = height;
+        // });
 
         widget.onHeightChanged?.call(_height);
       }

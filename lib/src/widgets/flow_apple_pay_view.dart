@@ -1,68 +1,105 @@
 import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
 import 'package:flutter/material.dart';
 
-/// CheckoutFlowApplePayView - Complete Apple Pay payment widget with all callbacks
+/// A complete, self-contained Apple Pay payment widget.
 ///
-/// This widget provides a complete Apple Pay payment solution with:
-/// - Loading state management (shows loader until Apple Pay button is ready)
-/// - Availability checking
-/// - Payment success/error handling
-/// - Token and session data callbacks
-/// - Built-in Apple Pay button rendering
+/// ## How it works
 ///
-/// Example usage:
+/// 1. The native iOS Checkout SDK renders the Apple Pay button.
+/// 2. When the user taps the button, the Apple Pay sheet opens.
+/// 3. After Face ID / Touch ID authorisation, the SDK processes the payment
+///    via Checkout.com's backend automatically.
+/// 4. **[onPaymentSuccess]** fires with a [PaymentSuccessResult] containing the
+///    `paymentId`. Use this to confirm the order on your own backend or navigate
+///    to a success screen.
+/// 5. **[onError]** fires for any failure (SDK init, unavailability, payment
+///    decline, or user cancellation).
+///
+/// ## Error codes in [PaymentErrorResult.errorCode]
+///
+/// | Code | Meaning |
+/// |------|---------|
+/// | `APPLEPAY_NOT_AVAILABLE` | Device / region does not support Apple Pay |
+/// | `APPLEPAY_USER_CANCELED` | User dismissed the sheet without paying |
+/// | `APPLEPAY_PAYMENT_DECLINED` | Card was declined by the issuer |
+/// | `CHECKOUT_ERROR` | General SDK / network error |
+/// | `INVALID_CONFIG` | Missing merchant ID, session ID, or public key |
+/// | `INITIALIZATION_FAILED` | SDK failed to initialise the component |
+/// | `UPDATE_AMOUNT_FAILED` | Amount update after `onReady` failed |
+///
+/// ## Example
+///
 /// ```dart
 /// CheckoutFlowApplePayView(
-///   paymentConfig: config,
-///   applePayConfig: applePayConfig,
-///   onReady: () => print('Apple Pay button ready'),
-///   onCardTokenized: (result) => print('Token: ${result.token}'),
-///   onSessionData: (sessionData) => _submitToBackend(sessionData),
-///   onPaymentSuccess: (result) => _showSuccess(result.paymentId),
-///   onError: (error) => _showError(error.errorMessage),
-///   onUnavailable: () => _showAlternativePayments(),
-///   loader: CircularProgressIndicator(), // Optional custom loader
+///   paymentConfig: paymentConfig,
+///   applePayConfig: ApplePayConfig(
+///     merchantIdentifier: 'merchant.com.example',
+///     amount: 1999, // in cents
+///   ),
+///   onReady: () => setState(() => _applePayVisible = true),
+///   onPaymentSuccess: (result) async {
+///     // result.paymentId is the Checkout.com payment ID
+///     await myBackend.confirmOrder(result.paymentId);
+///     _navigateToSuccessScreen();
+///   },
+///   onError: (error) {
+///     if (error.errorCode == 'APPLEPAY_USER_CANCELED') return; // silent
+///     _showErrorDialog(error.userFriendlyMessage);
+///   },
+///   onUnavailable: () => setState(() => _showAlternativePayment = true),
+///   loader: const CircularProgressIndicator(),
 /// )
 /// ```
 class CheckoutFlowApplePayView extends StatefulWidget {
-  /// Payment configuration for the Apple Pay component
+  /// Payment configuration (session ID, secret, public key, environment).
   final PaymentConfig paymentConfig;
 
-  /// Apple Pay configuration passed to the native SDK
+  /// Apple Pay–specific configuration (merchant identifier, amount).
   final ApplePayConfig applePayConfig;
 
-  /// Callback when Apple Pay button is ready for interaction
+  /// Called when the native Apple Pay button finishes loading and is ready.
   final Function()? onReady;
 
-  /// Callback when Apple Pay is successfully tokenized
+  /// Called when the SDK produces a card token (tokenization flow only).
   final Function(CardTokenResult)? onCardTokenized;
 
-  /// Callback when payment succeeds
+  /// Called when the payment completes successfully.
+  ///
+  /// [PaymentSuccessResult.paymentId] is the Checkout.com payment ID you can
+  /// use to confirm the order on your own backend.
   final Function(PaymentSuccessResult)? onPaymentSuccess;
 
-  /// Callback when session data is ready for backend submission
+  /// Called when session data is ready (card/saved-card flows only).
+  ///
+  /// Not called for Apple Pay — use [onPaymentSuccess] instead.
   final Function(String)? onSessionData;
 
-  /// Callback when any payment error occurs
+  /// Called on any payment error (decline, cancellation, SDK error, etc.).
+  ///
+  /// Check [PaymentErrorResult.errorCode] to distinguish error types.
+  /// [PaymentErrorResult.userFriendlyMessage] provides a display-ready string.
   final Function(PaymentErrorResult)? onError;
 
-  /// Callback when Apple Pay is not available on this device
+  /// Called when Apple Pay is not available on this device or region.
+  ///
+  /// Use this to hide the button and reveal an alternative payment method.
   final Function()? onUnavailable;
 
-  /// Callback when calculation/submission starts (before sheet opens)
+  /// Called when the user taps the Apple Pay button (before the sheet opens).
   final Function()? onSubmitted;
 
-  /// Callback when the payment sheet is dismissed by the user
+  /// Called when the user explicitly dismisses the Apple Pay sheet
+  /// (i.e. taps "Cancel").
   final Function()? onDismissed;
 
-  /// Widget to show when Apple Pay is not available
-  /// If not provided and Apple Pay is unavailable, widget returns SizedBox.shrink()
+  /// Widget to display when Apple Pay is not available.
+  /// Defaults to [SizedBox.shrink] if not provided.
   final Widget? unavailableWidget;
 
-  /// Custom loader widget to show while Apple Pay button is loading
-  /// If not provided, no loader is shown
+  /// Custom loading indicator shown until the Apple Pay button is ready.
   final Widget? loader;
 
+  /// Height of the Apple Pay button container. Defaults to `50`.
   final double height;
 
   const CheckoutFlowApplePayView({
@@ -130,19 +167,29 @@ class _CheckoutFlowApplePayViewState extends State<CheckoutFlowApplePayView> {
       if (mounted) widget.onDismissed?.call();
     };
 
-    // Error callback handles unavailability - SDK sends APPLEPAY_UNAVAILABLE error
+    // Error callback handles all native errors and user cancellation.
     _paymentBridge.onPaymentError = (error) {
-      if (mounted) {
-        setState(() {
-          _isFailed = true;
-        });
-        // If Apple Pay is unavailable, call the onUnavailable callback
-        if (error.errorCode == 'APPLEPAY_UNAVAILABLE' ||
-            error.errorCode == 'APPLEPAY_NOT_AVAILABLE') {
-          widget.onUnavailable?.call();
-        }
-        widget.onError?.call(error);
+      if (!mounted) return;
+
+      // User explicitly tapped Cancel — not a real failure, treat like onDismissed.
+      if (error.errorCode == 'APPLEPAY_USER_CANCELED' ||
+          error.errorCode == 'APPLE_PAY_CANCELED') {
+        widget.onDismissed?.call();
+        return;
       }
+
+      // Apple Pay not supported on this device.
+      if (error.errorCode == 'APPLEPAY_NOT_AVAILABLE' ||
+          error.errorCode == 'APPLEPAY_UNAVAILABLE') {
+        setState(() => _isFailed = true);
+        widget.onUnavailable?.call();
+        widget.onError?.call(error);
+        return;
+      }
+
+      // All other errors — surface to caller, but do NOT collapse the view
+      // for transient errors so the user can retry without re-mounting the widget.
+      widget.onError?.call(error);
     };
   }
 

@@ -648,7 +648,14 @@ class PaymentBridge {
     }
   }
 
-  /// Get Apple Pay session data (iOS only)
+
+  /// Returns Apple Pay session data (iOS only).
+  ///
+  /// Deprecated: Apple Pay is now self-contained — the button triggers the
+  /// payment sheet automatically and session data arrives via [onSessionData]
+  /// (driven by the native `handleSubmit` hook).  After receiving [onSessionData]
+  /// submit to your backend and call [completeApplePay] to finalise the sheet.
+  @Deprecated('Use onSessionData callback + completeApplePay() instead')
   Future<String> getApplePaySessionData() async {
     initialize();
     final completer = Completer<String>();
@@ -662,18 +669,12 @@ class PaymentBridge {
     };
 
     try {
-      ConsoleLogger.payment('Getting Apple Pay session data...');
-      await _channel.invokeMethod('getApplePaySessionData');
-      return await completer.future;
-    } on PlatformException catch (e) {
-      ConsoleLogger.error('Get Apple Pay session data failed: ${e.message}');
-      onPaymentError?.call(
-        PaymentErrorResult(
-          errorCode: e.code,
-          errorMessage: e.message ?? 'Failed to get session data',
-        ),
+      // Session data now arrives automatically — no channel invoke needed.
+      ConsoleLogger.warning(
+        'getApplePaySessionData is deprecated. '
+        'Listen to onSessionData and call completeApplePay() instead.',
       );
-      rethrow;
+      return await completer.future;
     } finally {
       onSessionData = previousSessionCallback;
     }

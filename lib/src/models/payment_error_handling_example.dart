@@ -175,6 +175,9 @@ void errorHandlingQuickReference(PaymentErrorResult error) {
     case PaymentErrorCode.launchError:
     case PaymentErrorCode.checkoutError:
     case PaymentErrorCode.unknown:
+    case PaymentErrorCode.applePayPaymentDeclined:
+    case PaymentErrorCode.updateAmountFailed:
+    case PaymentErrorCode.applePayUserCanceled:
       // Handle each error type
       break;
   }

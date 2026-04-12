@@ -12,6 +12,8 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     private var checkoutComponents: CheckoutSDK?
     private var cardComponent: CheckoutActionable?
     private var hasSentReady = false
+    private var lastValidationState: Bool?
+    private var lastBin: String?
 
     init(
         frame: CGRect,
@@ -206,10 +208,14 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     }
 
     private func sendValidationState(isValid: Bool) {
+        guard lastValidationState != isValid else { return }
+        lastValidationState = isValid
         invokeMethod("validationChanged", arguments: ["isValid": isValid])
     }
 
     private func sendCardBinChanged(_ metadata: CheckoutCardMetadata) {
+        guard lastBin != metadata.bin else { return }
+        lastBin = metadata.bin
         invokeMethod("cardBinChanged", arguments: checkoutCardMetadataMap(metadata))
     }
 
@@ -232,8 +238,12 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     }
 
     private func invokeMethod(_ method: String, arguments: Any?) {
-        DispatchQueue.main.async { [channel] in
+        if Thread.isMainThread {
             channel.invokeMethod(method, arguments: arguments)
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.channel.invokeMethod(method, arguments: arguments)
+            }
         }
     }
 }

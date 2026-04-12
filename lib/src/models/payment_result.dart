@@ -143,11 +143,13 @@ class PaymentErrorResult {
       final code =
           map['errorCode'] as String? ?? map['code'] as String? ?? 'UNKNOWN';
       return PaymentErrorResult(
-        // Native code sends 'errorCode' and 'errorMessage' keys
+        // Native sends 'errorCode' (machine key) and 'errorMessage' (human text).
+        // 'sdkErrorCode' is a detail field (the raw SDK code string), NOT the
+        // display message — so 'errorMessage' must take priority here.
         errorCode: code,
         errorMessage:
-            map['sdkErrorCode'] as String? ??
             map['errorMessage'] as String? ??
+            map['sdkErrorCode'] as String? ??
             'Unknown error',
         errorType: PaymentErrorCode.fromString(code),
         details: map,

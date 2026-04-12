@@ -7,11 +7,11 @@ class CheckoutApplePayView extends StatelessWidget {
   final PaymentConfig paymentConfig;
 
   static const ApplePayConfig _applePayConfig = ApplePayConfig(
-    merchantIdentifier: '01234567890123456789',
+    merchantIdentifier: 'merchant.co.macqueen.sandbox',
     merchantName: 'Demo Store',
     countryCode: 'US',
     currencyCode: 'USD',
-    amount: 1000,
+    amount: 1,
   );
 
   @override
