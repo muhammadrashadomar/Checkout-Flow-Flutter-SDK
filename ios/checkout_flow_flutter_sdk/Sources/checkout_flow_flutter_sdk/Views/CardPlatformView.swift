@@ -12,8 +12,6 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     private var checkoutComponents: CheckoutSDK?
     private var cardComponent: CheckoutActionable?
     private var hasSentReady = false
-    private var displayLink: CADisplayLink?
-    private var lastReportedHeight: CGFloat = 0
 
     init(
         frame: CGRect,
@@ -31,10 +29,6 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
         super.init()
 
         initializeComponent()
-    }
-
-    deinit {
-        stopDisplayLink()
     }
 
     func view() -> UIView {
@@ -190,44 +184,6 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
             hostingController.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             hostingController.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
         ])
-
-        startDisplayLink()
-    }
-
-    // MARK: - CADisplayLink height polling
-    //
-    // Flutter owns the container frame, so KVO on the hosting controller's bounds
-    // never fires — the frame stays locked to whatever Flutter gave it.
-    // Instead, we poll sizeThatFits every frame and notify Flutter only when
-    // the natural content height actually changes (e.g. remember-me expand/collapse).
-
-    private func startDisplayLink() {
-        let link = CADisplayLink(target: self, selector: #selector(checkHeight))
-        link.preferredFrameRateRange = CAFrameRateRange(minimum: 30, maximum: 60)
-        link.add(to: .main, forMode: .common)
-        displayLink = link
-    }
-
-    private func stopDisplayLink() {
-        displayLink?.invalidate()
-        displayLink = nil
-    }
-
-    @objc private func checkHeight() {
-        guard let hostingController else { return }
-
-        let width =
-            containerView.bounds.width > 0
-            ? containerView.bounds.width
-            : UIScreen.main.bounds.width
-
-        let targetSize = CGSize(width: width, height: UIView.layoutFittingCompressedSize.height)
-        let size = hostingController.sizeThatFits(in: targetSize)
-
-        guard size.height > 0, size.height != lastReportedHeight else { return }
-
-        lastReportedHeight = size.height
-        invokeMethod("heightChanged", arguments: ["height": size.height])
     }
 
     // MARK: - Flutter channel senders
