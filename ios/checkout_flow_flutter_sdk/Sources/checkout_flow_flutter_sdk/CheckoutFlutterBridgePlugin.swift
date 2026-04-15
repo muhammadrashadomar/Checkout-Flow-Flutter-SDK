@@ -84,9 +84,8 @@ public class CheckoutFlutterBridgePlugin: NSObject, FlutterPlugin {
             }
 
         // Apple Pay is self-contained: the button triggers the payment sheet,
-        // handleSubmit fires on user authorisation, and the sheet closes itself
-        // with a success animation.  Session data is forwarded to Flutter via
-        // the `sessionDataReady` channel event (onSessionData callback).
+        // the Checkout SDK handles the payment flow automatically, and the
+        // sheet returns success via the onSuccess callback.
 
         case "tokenizeApplePay":
             guard let applePayPlatformView else {

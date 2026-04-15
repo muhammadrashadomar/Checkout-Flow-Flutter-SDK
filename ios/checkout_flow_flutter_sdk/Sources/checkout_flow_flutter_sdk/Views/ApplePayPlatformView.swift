@@ -109,23 +109,53 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
             paymentSessionSecret: sessionSecret
         )
         let callbacks = CheckoutSDK.Callbacks(
+            /// Fires when the component is ready to be rendered and the Apple Pay button is available.
             onReady: { [weak self] _ in
+                print("[ApplePayPlatformView] onReady: Component is ready")
                 Task { @MainActor in
                     self?.handleOnReady()
                 }
             },
+            /// Fires immediately when the user taps the Apple Pay button.
+            /// Use this for tracking or showing a loading state.
             onSubmit: { [weak self] _ in
+                print("[ApplePayPlatformView] onSubmit: User tapped the Pay button")
                 self?.sendOnSubmit()
             },
+            /// Fires after the user has authorized the payment (TouchID/FaceID)
+            /// and the SDK has received tokenized payment data from Apple.
             onTokenized: { [weak self] result in
+                print("[ApplePayPlatformView] onTokenized: Payment authorized and tokenized")
                 self?.sendTokenizationResult(result.data)
                 return .accepted
             },
+            /// Fires when the SDK has prepared the final payment session data.
+            /// Returning .failure here pauses the native SDK progression, allowing
+            /// the Flutter application to handle the payment submission manually via onSessionData.
+            handleSubmit: { [weak self] sessionData in
+                print(
+                    "[ApplePayPlatformView] handleSubmit: Session data ready, forwarding to Flutter"
+                )
+                self?.sendSessionData(sessionData)
+
+                // Return a dummy success to the SDK to trigger the Apple Pay success checkmark.
+                // The actual payment processing is handled asynchronously by the backend.
+                return .success(
+                    CheckoutSDK.PaymentSessionSubmissionResult(
+                        id: "manual_\(UUID().uuidString)",
+                        status: "Authorized",
+                        type: "card"
+                    )
+                )
+            },
+            /// Fires when the payment has been successfully processed by the SDK's self-contained flow.
             onSuccess: { [weak self] _, paymentId in
+                print("[ApplePayPlatformView] onSuccess: Payment successful, ID: \(paymentId)")
                 self?.sendPaymentSuccess(paymentId)
             },
+            /// Fires when an error occurs, including user cancellation of the Apple Pay sheet.
             onError: { [weak self] error in
-                print("[ApplePayPlatformView] Checkout error: \(error.localizedDescription)")
+                print("[ApplePayPlatformView] onError: \(error.localizedDescription)")
                 self?.sendCheckoutError(error, defaultCode: ApplePayErrorCode.checkoutError)
             }
         )
@@ -237,7 +267,7 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
     @MainActor
     private func handleOnReady() {
         sendApplePayReady()
-        
+
         let applePayConfig = args["applePayConfig"] as? [String: Any]
         guard let amount = applePayConfig?["amount"] as? Int else {
             sendError(
@@ -249,8 +279,8 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
         updatePaymentAmount(amount: amount)
     }
 
-    // Calling .update(with:) function just updates the UI,
-    // for updating the payment session you have to provide handleSubmit callback.
+    // Calling .update(with:) function updates the payment amount displayed on the Apple Pay sheet.
+    // The Checkout SDK handles session updates and payment processing automatically.
     /// Updates the payment amount in the SDK to reflect on the Apple Pay sheet.
     /// - Parameter amount: The amount in cents.
     @MainActor

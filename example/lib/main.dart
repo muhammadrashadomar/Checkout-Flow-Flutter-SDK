@@ -3,12 +3,13 @@ import 'dart:io';
 import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
 import 'package:example/apple_pay_button.dart';
 import 'package:example/card_view_widget.dart';
+import 'package:example/dismiss_keyboard.dart';
 import 'package:example/google_pay_button.dart';
 import 'package:flutter/material.dart';
 
 // Google Pay Configuration
-const String paymentSessionId = 'ps_3CGmmZxGq8mccgzzEfGEZlIWjQP';
-const String paymentSessionSecret = 'pss_e31b0dd5-0b02-4e9c-a96c-407c9a0e87bd';
+const String paymentSessionId = 'ps_3COMpx7thYiH0NXH03bwdk30LxP';
+const String paymentSessionSecret = 'pss_7d8388ea-57be-4cf2-a3ac-0b17b55424b1';
 const String publicKey = 'pk_sbox_fjizign6afqbt3btt3ialiku74s';
 
 // Payment configuration
@@ -40,17 +41,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Payment Integration',
-      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      builder: (context, child) {
-        return GestureDetector(
-          onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
-          child: child,
-        );
-      },
-      home: const PaymentScreen(),
+    return DismissKeyboard(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Payment Integration',
+        theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+        builder: (context, child) {
+          return GestureDetector(
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: child,
+          );
+        },
+        home: const PaymentScreen(),
+      ),
     );
   }
 }
@@ -64,6 +67,7 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   var currentPaymentType = CurrentPaymentType.card;
+  bool _isBottomSheetOpen = false;
 
   final PaymentBridge _paymentBridge = PaymentBridge();
 
@@ -113,65 +117,89 @@ class _PaymentScreenState extends State<PaymentScreen> {
         title: const Text('Payment Integration Demo'),
         elevation: 2,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 16,
-          children: [
-            // Title
-            const Center(
-              child: Text(
-                'Choose Payment Method',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
+      // bottomSheet: PaymentBottomSheet(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 16,
+        children: [
+          // Title
+          const Center(
+            child: Text(
+              'Choose Payment Method',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
+          ),
 
-            ElevatedButton(
-              onPressed: () => kShowAddNewCardBottomSheet(
+          ElevatedButton(
+            onPressed: () {
+              setState(() => _isBottomSheetOpen = true);
+              kShowAddNewCardBottomSheet(
                 context,
                 paymentConfig: _paymentConfig,
-              ),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey,
-              ),
-              child: Text('Add New Card'),
+              ).whenComplete(() async {
+                await Future.delayed(const Duration(milliseconds: 200));
+                if (mounted) {
+                  setState(() => _isBottomSheetOpen = false);
+                }
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey,
             ),
+            child: Text('Add New Card'),
+          ),
 
-            SizedBox(height: 20),
+          SizedBox(height: 200),
+          ElevatedButton(
+            onPressed: () async {
+              // if (!_canPay) return;
+              // Payment will be triggered
+              // If card is invalid, onError will be called
+              final bridge = PaymentBridge();
+              final result = await bridge.submit(CurrentPaymentType.card);
 
-            if (Platform.isIOS)
-              CheckoutApplePayView(paymentConfig: _paymentConfig)
-            else
-              CheckoutGooglePayView(paymentConfig: _paymentConfig),
-
-            SizedBox(height: 200),
-            ElevatedButton(
-              onPressed: () async {
-                // if (!_canPay) return;
-                // Payment will be triggered
-                // If card is invalid, onError will be called
-                final bridge = PaymentBridge();
-                final result = await bridge.submit(CurrentPaymentType.card);
-
-                ConsoleLogger.success("SessionData: ${result.sessionData}");
-              },
-              style: ElevatedButton.styleFrom(
-                fixedSize: Size(double.infinity, 50),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                backgroundColor: Colors.blueGrey[700],
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey,
+              ConsoleLogger.success("SessionData: ${result.sessionData}");
+            },
+            style: ElevatedButton.styleFrom(
+              fixedSize: Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
               ),
-              child: Text('Pay Now'),
+              backgroundColor: Colors.blueGrey[700],
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey,
             ),
-          ],
-        ),
+            child: Text('Pay Now'),
+          ),
+          Spacer(),
+
+          Opacity(
+            opacity: _isBottomSheetOpen ? 0.0 : 1.0,
+            child: IgnorePointer(
+              ignoring: _isBottomSheetOpen,
+              child: const PaymentBtn(),
+            ),
+          ),
+        ],
       ),
+    );
+  }
+}
+
+class PaymentBtn extends StatelessWidget {
+  const PaymentBtn({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      height: 100,
+      width: 320,
+      padding: EdgeInsetsGeometry.all(20),
+      child: (Platform.isIOS)
+          ? CheckoutApplePayView(paymentConfig: _paymentConfig)
+          : CheckoutGooglePayView(paymentConfig: _paymentConfig),
     );
   }
 }

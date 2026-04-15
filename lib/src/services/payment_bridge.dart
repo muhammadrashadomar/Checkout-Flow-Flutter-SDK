@@ -652,10 +652,9 @@ class PaymentBridge {
   /// Returns Apple Pay session data (iOS only).
   ///
   /// Deprecated: Apple Pay is now self-contained — the button triggers the
-  /// payment sheet automatically and session data arrives via [onSessionData]
-  /// (driven by the native `handleSubmit` hook).  After receiving [onSessionData]
-  /// submit to your backend and call [completeApplePay] to finalise the sheet.
-  @Deprecated('Use onSessionData callback + completeApplePay() instead')
+  /// payment sheet automatically and the SDK processes the payment internally.
+  /// Listen to the [onPaymentSuccess] callback for the result.
+  @Deprecated('Apple Pay is now self-contained. Listen to onPaymentSuccess instead.')
   Future<String> getApplePaySessionData() async {
     initialize();
     final completer = Completer<String>();

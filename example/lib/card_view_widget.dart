@@ -55,56 +55,58 @@ class _CheckoutCardViewState extends State<CheckoutCardView> {
 }
 
 // Card View in Bottom sheet -------------------------------------------------
-void kShowAddNewCardBottomSheet(
+Future<T?> kShowAddNewCardBottomSheet<T>(
   BuildContext context, {
   required PaymentConfig paymentConfig,
   Function(bool)? canPay,
 }) {
-  showModalBottomSheet(
+  return showModalBottomSheet<T>(
     context: context,
     backgroundColor: Colors.white,
     isScrollControlled: true,
-    builder: (context) => SizedBox(
-      height: MediaQuery.of(context).size.height * 0.9,
-      child: _AddCardViewBody(paymentConfig: paymentConfig, canPay: canPay),
-    ),
+    builder: (context) =>
+        _AddCardViewBody(paymentConfig: paymentConfig, canPay: canPay),
   );
 }
 
-class _AddCardViewBody extends StatefulWidget {
+class _AddCardViewBody extends StatelessWidget {
   const _AddCardViewBody({required this.canPay, required this.paymentConfig});
 
   final Function(bool)? canPay;
   final PaymentConfig paymentConfig;
 
   @override
-  State<_AddCardViewBody> createState() => _AddCardViewBodyState();
-}
-
-class _AddCardViewBodyState extends State<_AddCardViewBody> {
-  // bool _isLoading = false;
-
-  @override
   Widget build(BuildContext context) {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: [
-        CheckoutCardView(paymentConfig: widget.paymentConfig),
-        ElevatedButton(
-          onPressed: () async {
-            // setState(() => _isLoading = true);
-            final result = await PaymentBridge().tokenizeCard();
+    return GestureDetector(
+      onTap: () => FocusScope.of(context).unfocus(),
+      behavior: HitTestBehavior.opaque,
+      child: Padding(
+        padding:
+            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        child: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            mainAxisAlignment: MainAxisAlignment.end,
+            children: [
+              CheckoutCardView(paymentConfig: paymentConfig),
+              ElevatedButton(
+                onPressed: () async {
+                  final result = await PaymentBridge().tokenizeCard();
 
-            ConsoleLogger.success("Tokenized: ${result.token}");
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.grey,
+                  ConsoleLogger.success("Tokenized: ${result.token}");
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: Colors.blue,
+                  foregroundColor: Colors.white,
+                  disabledBackgroundColor: Colors.grey,
+                ),
+                child: Text('Add Card'),
+              ),
+              const SizedBox(height: 32),
+            ],
           ),
-          child: Text('Add Card'),
         ),
-      ],
+      ),
     );
   }
 }

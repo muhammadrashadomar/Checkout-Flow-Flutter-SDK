@@ -30,7 +30,15 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
 
         super.init()
 
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleBackgroundTap))
+        tapGesture.cancelsTouchesInView = false
+        self.containerView.addGestureRecognizer(tapGesture)
+
         initializeComponent()
+    }
+
+    @objc private func handleBackgroundTap() {
+        containerView.endEditing(true)
     }
 
     func view() -> UIView {
@@ -178,14 +186,24 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
         hostingController.view.backgroundColor = .clear
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
 
+        // Important: Improve layout behavior
+        hostingController.view.setContentHuggingPriority(.required, for: .vertical)
+        hostingController.view.setContentCompressionResistancePriority(.required, for: .vertical)
+
+        // Container setup
+        containerView.clipsToBounds = true
         containerView.addSubview(hostingController.view)
+
         self.hostingController = hostingController
 
         NSLayoutConstraint.activate([
             hostingController.view.topAnchor.constraint(equalTo: containerView.topAnchor),
             hostingController.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
             hostingController.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            hostingController.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
         ])
+
+        containerView.layoutIfNeeded()
     }
 
     // MARK: - Flutter channel senders

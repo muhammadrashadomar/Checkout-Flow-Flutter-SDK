@@ -25,6 +25,25 @@ class PaymentConfig {
       if (appearance != null) 'appearance': appearance!.toMap(),
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is PaymentConfig &&
+          runtimeType == other.runtimeType &&
+          paymentSessionId == other.paymentSessionId &&
+          paymentSessionSecret == other.paymentSessionSecret &&
+          publicKey == other.publicKey &&
+          environment == other.environment &&
+          appearance == other.appearance;
+
+  @override
+  int get hashCode =>
+      paymentSessionId.hashCode ^
+      paymentSessionSecret.hashCode ^
+      publicKey.hashCode ^
+      environment.hashCode ^
+      appearance.hashCode;
 }
 
 enum PaymentEnvironment { sandbox, production }
@@ -47,6 +66,19 @@ class AppearanceConfig {
       if (fontConfig != null) 'fontConfig': fontConfig!.toMap(),
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is AppearanceConfig &&
+          runtimeType == other.runtimeType &&
+          colorTokens == other.colorTokens &&
+          borderRadius == other.borderRadius &&
+          fontConfig == other.fontConfig;
+
+  @override
+  int get hashCode =>
+      colorTokens.hashCode ^ borderRadius.hashCode ^ fontConfig.hashCode;
 }
 
 class ColorTokens {
@@ -73,6 +105,25 @@ class ColorTokens {
       if (colorBackground != null) 'colorBackground': colorBackground,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ColorTokens &&
+          runtimeType == other.runtimeType &&
+          colorAction == other.colorAction &&
+          colorPrimary == other.colorPrimary &&
+          colorBorder == other.colorBorder &&
+          colorFormBorder == other.colorFormBorder &&
+          colorBackground == other.colorBackground;
+
+  @override
+  int get hashCode =>
+      colorAction.hashCode ^
+      colorPrimary.hashCode ^
+      colorBorder.hashCode ^
+      colorFormBorder.hashCode ^
+      colorBackground.hashCode;
 }
 
 class FontConfig {
@@ -87,6 +138,17 @@ class FontConfig {
       if (fontWeight != null) 'fontWeight': fontWeight,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is FontConfig &&
+          runtimeType == other.runtimeType &&
+          fontSize == other.fontSize &&
+          fontWeight == other.fontWeight;
+
+  @override
+  int get hashCode => fontSize.hashCode ^ fontWeight.hashCode;
 }
 
 class CardConfig {
@@ -104,6 +166,18 @@ class CardConfig {
       'enableBillingAddress': enableBillingAddress,
     };
   }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is CardConfig &&
+          runtimeType == other.runtimeType &&
+          showCardholderName == other.showCardholderName &&
+          enableBillingAddress == other.enableBillingAddress;
+
+  @override
+  int get hashCode =>
+      showCardholderName.hashCode ^ enableBillingAddress.hashCode;
 }
 
 class GooglePayConfig {

@@ -38,6 +38,35 @@ class SavedCardConfig {
   };
 
   @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is SavedCardConfig &&
+          runtimeType == other.runtimeType &&
+          paymentSourceId == other.paymentSourceId &&
+          last4 == other.last4 &&
+          scheme == other.scheme &&
+          expiryMonth == other.expiryMonth &&
+          expiryYear == other.expiryYear &&
+          cardholderName == other.cardholderName &&
+          bin == other.bin &&
+          issuer == other.issuer &&
+          issuerCountryCode == other.issuerCountryCode &&
+          issuerCountryName == other.issuerCountryName;
+
+  @override
+  int get hashCode =>
+      paymentSourceId.hashCode ^
+      last4.hashCode ^
+      scheme.hashCode ^
+      expiryMonth.hashCode ^
+      expiryYear.hashCode ^
+      cardholderName.hashCode ^
+      bin.hashCode ^
+      issuer.hashCode ^
+      issuerCountryCode.hashCode ^
+      issuerCountryName.hashCode;
+
+  @override
   String toString() {
     return 'SavedCardConfig(sourceId: $paymentSourceId, scheme: $scheme, last4: $last4, expiry: $expiryMonth/$expiryYear, issuer: $issuer, issuerCountry: $issuerCountryCode, issuerCountryName: $issuerCountryName)';
   }

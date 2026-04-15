@@ -83,7 +83,7 @@ class CheckoutFlowCardView extends StatefulWidget {
     this.onError,
     this.onHeightChanged,
     this.loader,
-    this.height = 300,
+    this.height = 350,
   });
 
   @override
@@ -197,11 +197,13 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
     return Stack(
       alignment: Alignment.topCenter,
       children: [
-        SizedBox(
-          height: _height,
-          child: CardNativeView(
-            paymentConfig: widget.paymentConfig,
-            cardConfig: widget.cardConfig,
+        RepaintBoundary(
+          child: SizedBox(
+            height: _height,
+            child: CardNativeView(
+              paymentConfig: widget.paymentConfig,
+              cardConfig: widget.cardConfig,
+            ),
           ),
         ),
 
