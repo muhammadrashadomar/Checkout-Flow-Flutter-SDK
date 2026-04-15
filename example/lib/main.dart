@@ -1,9 +1,15 @@
-import 'package:checkout_flutter_bridge/checkout_flutter_bridge.dart';
+import 'dart:io';
+
+import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
+import 'package:example/apple_pay_button.dart';
+import 'package:example/card_view_widget.dart';
+import 'package:example/dismiss_keyboard.dart';
+import 'package:example/google_pay_button.dart';
 import 'package:flutter/material.dart';
 
 // Google Pay Configuration
-const String paymentSessionId = 'ps_3Bag4JY0m6OjnN663VydclbDlI9';
-const String paymentSessionSecret = 'pss_ad70cbd8-cf5b-457e-9066-e4a67192d058';
+const String paymentSessionId = 'ps_3COMpx7thYiH0NXH03bwdk30LxP';
+const String paymentSessionSecret = 'pss_7d8388ea-57be-4cf2-a3ac-0b17b55424b1';
 const String publicKey = 'pk_sbox_fjizign6afqbt3btt3ialiku74s';
 
 // Payment configuration
@@ -12,6 +18,7 @@ final _paymentConfig = PaymentConfig(
   paymentSessionSecret: paymentSessionSecret,
   publicKey: publicKey,
   environment: PaymentEnvironment.sandbox,
+
   appearance: AppearanceConfig(
     borderRadius: 8,
     colorTokens: ColorTokens(
@@ -34,11 +41,19 @@ class MyApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      title: 'Payment Integration',
-      theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
-      home: const PaymentScreen(),
+    return DismissKeyboard(
+      child: MaterialApp(
+        debugShowCheckedModeBanner: false,
+        title: 'Payment Integration',
+        theme: ThemeData(primarySwatch: Colors.blue, useMaterial3: true),
+        builder: (context, child) {
+          return GestureDetector(
+            onTap: () => FocusManager.instance.primaryFocus?.unfocus(),
+            child: child,
+          );
+        },
+        home: const PaymentScreen(),
+      ),
     );
   }
 }
@@ -52,6 +67,7 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   var currentPaymentType = CurrentPaymentType.card;
+  bool _isBottomSheetOpen = false;
 
   final PaymentBridge _paymentBridge = PaymentBridge();
 
@@ -101,245 +117,89 @@ class _PaymentScreenState extends State<PaymentScreen> {
         title: const Text('Payment Integration Demo'),
         elevation: 2,
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          spacing: 16,
-          children: [
-            // Title
-            const Center(
-              child: Text(
-                'Choose Payment Method',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
+      // bottomSheet: PaymentBottomSheet(),
+      body: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        spacing: 16,
+        children: [
+          // Title
+          const Center(
+            child: Text(
+              'Choose Payment Method',
+              style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
             ),
+          ),
 
-            ElevatedButton(
-              onPressed: () async {
-                showModalBottomSheet(
-                  context: context,
-                  backgroundColor: Colors.white,
-                  builder: (context) =>
-                      AddCardViewBody(canPay: (value) => setState(() => true)),
-                );
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.blue,
-                foregroundColor: Colors.white,
-                disabledBackgroundColor: Colors.grey,
-              ),
-              child: Text('Add New Card'),
+          ElevatedButton(
+            onPressed: () {
+              setState(() => _isBottomSheetOpen = true);
+              kShowAddNewCardBottomSheet(
+                context,
+                paymentConfig: _paymentConfig,
+              ).whenComplete(() async {
+                await Future.delayed(const Duration(milliseconds: 200));
+                if (mounted) {
+                  setState(() => _isBottomSheetOpen = false);
+                }
+              });
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.blue,
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey,
             ),
+            child: Text('Add New Card'),
+          ),
 
-            SizedBox(height: 20),
-            // ElevatedButton(
-            //   onPressed: () async {
-            //     // if (!_canPay) return;
-            //     // Payment will be triggered
-            //     // If card is invalid, onError will be called
-            //     final bridge = PaymentBridge();
-            //     final result = await bridge.submit(CurrentPaymentType.card);
+          SizedBox(height: 200),
+          ElevatedButton(
+            onPressed: () async {
+              // if (!_canPay) return;
+              // Payment will be triggered
+              // If card is invalid, onError will be called
+              final bridge = PaymentBridge();
+              final result = await bridge.submit(CurrentPaymentType.card);
 
-            //     ConsoleLogger.success("SessionData: ${result.sessionData}");
-            //   },
-            //   style: ElevatedButton.styleFrom(
-            //     backgroundColor: Colors.blue,
-            //     foregroundColor: Colors.white,
-            //     disabledBackgroundColor: Colors.grey,
-            //   ),
-            //   child: Text('Pay Now'),
-            // ),
+              ConsoleLogger.success("SessionData: ${result.sessionData}");
+            },
+            style: ElevatedButton.styleFrom(
+              fixedSize: Size(double.infinity, 50),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              backgroundColor: Colors.blueGrey[700],
+              foregroundColor: Colors.white,
+              disabledBackgroundColor: Colors.grey,
+            ),
+            child: Text('Pay Now'),
+          ),
+          Spacer(),
 
-            // Google Pay view
-            // CheckoutGooglePayView(paymentConfig: _paymentConfig),
-          ],
-        ),
+          Opacity(
+            opacity: _isBottomSheetOpen ? 0.0 : 1.0,
+            child: IgnorePointer(
+              ignoring: _isBottomSheetOpen,
+              child: const PaymentBtn(),
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class CheckoutCardView extends StatefulWidget {
-  const CheckoutCardView({
-    super.key,
-    required this.paymentConfig,
-    this.onReady,
-    this.onTokenized,
-    this.onFetchedSessionData,
-    this.onValidInput,
-    this.onError,
-  });
-
-  final PaymentConfig paymentConfig;
-  final void Function()? onReady;
-  final void Function(CardTokenResult)? onTokenized;
-  final void Function(String)? onFetchedSessionData;
-  final void Function(bool)? onValidInput;
-  final void Function(PaymentErrorResult)? onError;
-
-  @override
-  State<CheckoutCardView> createState() => _CheckoutCardViewState();
-}
-
-class _CheckoutCardViewState extends State<CheckoutCardView> {
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      spacing: 16,
-      children: [
-        Padding(
-          padding: const EdgeInsets.all(20.0),
-          child: CheckoutFlowCardView(
-            paymentConfig: widget.paymentConfig,
-            loader: const Center(child: CircularProgressIndicator()),
-            onReady: () {
-              widget.onReady?.call();
-            },
-            onValidInput: (bool valid) {
-              // Note: This may not fire in real-time due to SDK limitations
-              widget.onValidInput?.call(valid);
-            },
-            onCardBinChanged: (CardMetadata bin) {
-              ConsoleLogger.success(
-                '[Flow-Card] Card bin changed: ${bin.toString()}',
-              );
-            },
-            // onCardTokenized: (CardTokenResult result) {
-            //   ConsoleLogger.success(
-            //     '[Flow-Card] Card tokenized: ${result.token}',
-            //   );
-            //   widget.onTokenized?.call(result);
-            // },
-          ),
-        ),
-      ],
-    );
-  }
-}
-
-class CheckoutGooglePayView extends StatelessWidget {
-  const CheckoutGooglePayView({super.key, required this.paymentConfig});
-
-  final PaymentConfig paymentConfig;
-
-  static const GooglePayConfig _googlePayConfig = GooglePayConfig(
-    merchantId: '01234567890123456789',
-    merchantName: 'Demo Store',
-    countryCode: 'US',
-    currencyCode: 'USD',
-    totalPrice: 100,
-  );
+class PaymentBtn extends StatelessWidget {
+  const PaymentBtn({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      spacing: 16,
-      children: [
-        CheckoutFlowGooglePayView(
-          paymentConfig: paymentConfig,
-          googlePayConfig: _googlePayConfig,
-          loader: const Center(child: CircularProgressIndicator()),
-          onReady: () {
-            ConsoleLogger.success("Ready");
-          },
-          onCardTokenized: (CardTokenResult result) {
-            ConsoleLogger.success(
-              '[Flow-Card] Card tokenized: ${result.token}',
-            );
-          },
-
-          onSessionData: (String sessionData) {
-            ConsoleLogger.success('[Flow-Card] Session data ready');
-          },
-          onError: (PaymentErrorResult error) {
-            // Example: Using the error type enum for better error handling
-            ConsoleLogger.error(
-              '[Flow-GPay] ${error.errorType.name}: ${error.errorMessage}',
-            );
-
-            // Type-safe error handling
-            String errorTitle = 'Payment Error';
-            String errorMessage = error.userFriendlyMessage;
-            Color backgroundColor = Colors.red;
-
-            // Categorize errors using the enum
-            if (error.isGooglePayError) {
-              errorTitle = 'Google Pay Error';
-              backgroundColor = Colors.orange;
-            } else if (error.isInitializationError) {
-              errorTitle = 'Initialization Error';
-              errorMessage = 'Failed to initialize payment. Please try again.';
-            } else if (error.isRetryable) {
-              errorMessage += '\nPlease try again.';
-            }
-
-            // Show error to user with enhanced information
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        errorTitle,
-                        style: const TextStyle(fontWeight: FontWeight.bold),
-                      ),
-                      Text(errorMessage),
-                    ],
-                  ),
-                  backgroundColor: backgroundColor,
-                  duration: const Duration(seconds: 5),
-                ),
-              );
-            }
-          },
-        ),
-      ],
-    );
-  }
-}
-
-class AddCardViewBody extends StatefulWidget {
-  const AddCardViewBody({super.key, required this.canPay});
-
-  final Function(bool) canPay;
-
-  @override
-  State<AddCardViewBody> createState() => _AddCardViewBodyState();
-}
-
-class _AddCardViewBodyState extends State<AddCardViewBody> {
-  // bool _isLoading = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return Column(
-      children: [
-        CheckoutCardView(
-          paymentConfig: _paymentConfig,
-          // onTokenized: (value) {
-          //   // setState(() => _isLoading = false);
-          //   widget.canPay(true);
-          //   Navigator.pop(context);
-          // },
-        ),
-        ElevatedButton(
-          onPressed: () async {
-            // setState(() => _isLoading = true);
-            final result = await PaymentBridge().tokenizeCard();
-
-            ConsoleLogger.success("Tokenized: ${result.token}");
-          },
-          style: ElevatedButton.styleFrom(
-            backgroundColor: Colors.blue,
-            foregroundColor: Colors.white,
-            disabledBackgroundColor: Colors.grey,
-          ),
-          child: Text('Add Card'),
-        ),
-      ],
+    return Container(
+      height: 100,
+      width: 320,
+      padding: EdgeInsetsGeometry.all(20),
+      child: (Platform.isIOS)
+          ? CheckoutApplePayView(paymentConfig: _paymentConfig)
+          : CheckoutGooglePayView(paymentConfig: _paymentConfig),
     );
   }
 }

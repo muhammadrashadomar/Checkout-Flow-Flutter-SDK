@@ -1,4 +1,4 @@
-import 'package:checkout_flutter_bridge/checkout_flutter_bridge.dart';
+import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
 import 'package:flutter/material.dart';
 
 /// CheckoutFlowGooglePayView - Complete Google Pay payment widget with all callbacks
@@ -48,6 +48,12 @@ class CheckoutFlowGooglePayView extends StatefulWidget {
   /// Callback when Google Pay is not available on this device
   final Function()? onUnavailable;
 
+  /// Callback when calculation/submission starts (before sheet opens)
+  final Function()? onSubmitted;
+
+  /// Callback when the payment sheet is dismissed by the user
+  final Function()? onDismissed;
+
   /// Widget to show when Google Pay is not available
   /// If not provided and Google Pay is unavailable, widget returns SizedBox.shrink()
   final Widget? unavailableWidget;
@@ -68,6 +74,8 @@ class CheckoutFlowGooglePayView extends StatefulWidget {
     this.onSessionData,
     this.onError,
     this.onUnavailable,
+    this.onSubmitted,
+    this.onDismissed,
     this.unavailableWidget,
     this.loader,
     this.height = 50,
@@ -80,6 +88,7 @@ class CheckoutFlowGooglePayView extends StatefulWidget {
 
 class _CheckoutFlowGooglePayViewState extends State<CheckoutFlowGooglePayView> {
   bool _isReady = false;
+  bool _isFailed = false;
   final PaymentBridge _paymentBridge = PaymentBridge();
 
   @override
@@ -112,9 +121,20 @@ class _CheckoutFlowGooglePayViewState extends State<CheckoutFlowGooglePayView> {
       if (mounted) widget.onSessionData?.call(sessionData);
     };
 
+    _paymentBridge.onSubmitted = () {
+      if (mounted) widget.onSubmitted?.call();
+    };
+
+    _paymentBridge.onDismissed = () {
+      if (mounted) widget.onDismissed?.call();
+    };
+
     // Error callback handles unavailability - SDK sends GOOGLEPAY_UNAVAILABLE error
     _paymentBridge.onPaymentError = (error) {
       if (mounted) {
+        setState(() {
+          _isFailed = true;
+        });
         // If Google Pay is unavailable, call the onUnavailable callback
         if (error.errorCode == 'GOOGLEPAY_UNAVAILABLE' ||
             error.errorCode == 'GOOGLEPAY_NOT_AVAILABLE') {
@@ -142,8 +162,12 @@ class _CheckoutFlowGooglePayViewState extends State<CheckoutFlowGooglePayView> {
             googlePayConfig: widget.googlePayConfig,
           ),
         ),
+
+        if (_isFailed)
+          SizedBox.shrink()
         // Loader - shown until Google Pay button is ready
-        if (!_isReady && widget.loader != null) widget.loader!,
+        else if (!_isReady && widget.loader != null)
+          widget.loader!,
       ],
     );
   }

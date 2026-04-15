@@ -6,6 +6,8 @@ import android.util.Log
 import android.widget.FrameLayout
 import androidx.activity.ComponentActivity
 import androidx.compose.ui.platform.ComposeView
+import androidx.lifecycle.DefaultLifecycleObserver
+import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import com.checkout.components.core.CheckoutComponentsFactory
 import com.checkout.components.interfaces.Environment
@@ -20,6 +22,7 @@ import com.checkout.components.interfaces.model.ApiCallResult
 import com.checkout.components.interfaces.model.CallbackResult
 import com.checkout.components.interfaces.model.PaymentMethodName
 import com.checkout.components.interfaces.model.PaymentSessionResponse
+import com.checkout.components.interfaces.model.UpdateDetails
 import com.checkout.components.wallet.wrapper.GooglePayFlowCoordinator
 import io.flutter.plugin.common.BinaryMessenger
 import io.flutter.plugin.common.MethodChannel
@@ -51,18 +54,62 @@ class GooglePayPlatformView(
         messenger: BinaryMessenger
 ) : PlatformView {
 
-    private val container = FrameLayout(activity)
+    private var lastNativeTouchTime = 0L
+
+    // Intercept touch events natively to prevent double-taps on the Compose button
+    private val container = object : FrameLayout(activity) {
+        override fun dispatchTouchEvent(ev: android.view.MotionEvent?): Boolean {
+            // Block ALL touches if the payment sheet is already opening or open
+            if (isGooglePayOpen.get()) {
+                return true 
+            }
+            // Add a 1-second debounce to native screen touches
+            if (ev?.action == android.view.MotionEvent.ACTION_DOWN) {
+                val currentTime = System.currentTimeMillis()
+                if (currentTime - lastNativeTouchTime < 1000) {
+                    Log.w(TAG, "Ignoring rapid double-tap on native Google Pay button")
+                    return true
+                }
+                lastNativeTouchTime = currentTime
+            }
+            return super.dispatchTouchEvent(ev)
+        }
+    }
+
     private val channel = MethodChannel(messenger, CHANNEL_NAME)
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     private lateinit var checkoutComponents: CheckoutComponents
     private lateinit var googlePayComponent: PaymentMethodComponent
+    private var params: Map<*, *>? = args as? Map<*, *>
     private lateinit var coordinator: GooglePayFlowCoordinator
 
     private val isInitialized = AtomicBoolean(false)
     private val isInitializing = AtomicBoolean(false)
 
+    // State tracking for Google Pay sheet dismissal
+    private val isGooglePayOpen = AtomicBoolean(false)
+    private val isResultHandled = AtomicBoolean(false)
+
+    private val lifecycleObserver = object : DefaultLifecycleObserver {
+        override fun onResume(owner: LifecycleOwner) {
+            super.onResume(owner)
+            if (isGooglePayOpen.compareAndSet(true, false)) {
+                Log.d(TAG, "Activity resumed - checking if GPay was dismissed")
+                // Wait briefly to allow success/error callbacks to process first if they fired
+                scope.launch {
+                    delay(300)
+                    if (!isResultHandled.get()) {
+                        Log.d(TAG, "No result handled, assuming GPay dismissed by user")
+                        sendOnDismissed()
+                    }
+                }
+            }
+        }
+    }
+
     init {
+        activity.lifecycle.addObserver(lifecycleObserver)
         initializeGooglePay(args)
     }
 
@@ -73,7 +120,7 @@ class GooglePayPlatformView(
      */
     private fun initializeGooglePay(args: Any?) {
         // Validate and parse arguments
-        val params = args as? Map<*, *>
+        val params = this.params
         if (params == null) {
             Log.e(TAG, "Initialization failed: Invalid arguments")
             sendError(ErrorCode.INVALID_CONFIG, "Configuration parameters are required")
@@ -124,9 +171,15 @@ class GooglePayPlatformView(
                             // Return Failure to prevent SDK from completing payment automatically
                             ApiCallResult.Failure
                         },
-                        onSubmit = { component -> Log.d(TAG, "GPay submitted: ${component.name}") },
+                        onSubmit = { component ->
+                            Log.d(TAG, "GPay submitted: ${component.name}")
+                            isGooglePayOpen.set(true)
+                            isResultHandled.set(false)
+                            sendOnSubmit()
+                        },
                         onTokenized = { result ->
                             Log.d(TAG, "onTokenized - sending tokenization result to Flutter")
+                            isResultHandled.set(true)
                             sendTokenizationResult(result.data)
 
                             // Return Accepted to prevent SDK from completing payment automatically
@@ -134,10 +187,12 @@ class GooglePayPlatformView(
                         },
                         onSuccess = { _, paymentID ->
                             Log.i(TAG, "Payment successful")
+                            isResultHandled.set(true)
                             sendPaymentSuccess(paymentID)
                         },
                         onError = { _, error ->
                             Log.e(TAG, "Payment error: ${error.message}")
+                            isResultHandled.set(true)
                             sendError(ErrorCode.PAYMENT_ERROR, error.message ?: "Payment failed")
                         }
                 )
@@ -192,6 +247,13 @@ class GooglePayPlatformView(
                             
                             // Notify Flutter that Google Pay button is ready
                             sendGooglePayReady()
+
+                            // Update payment amount if provided in configuration
+                            val googlePayConfig = params["googlePayConfig"] as? Map<*, *>
+                            val amount = googlePayConfig?.get("totalPrice") as? Int
+                            if (amount != null) {
+                                updatePaymentAmount(amount)
+                            }
                         }
                     } else {
                         throw GooglePayException(
@@ -238,6 +300,12 @@ class GooglePayPlatformView(
      * @param data Optional data string from activity
      */
     private fun handleActivityResult(resultCode: Int, data: String) {
+        // Intercept cancellation event (user dismissed the Google Pay sheet)
+        if (resultCode == android.app.Activity.RESULT_CANCELED) {
+            Log.d(TAG, "Google Pay sheet cancelled/dismissed by user")
+            sendOnDismissed()
+        }
+
         try {
             if (::checkoutComponents.isInitialized) {
                 checkoutComponents.handleActivityResult(resultCode, data)
@@ -248,6 +316,31 @@ class GooglePayPlatformView(
         } catch (e: Exception) {
             Log.e(TAG, "Error handling activity result", e)
             sendError(ErrorCode.PAYMENT_ERROR, "Failed to process payment result: ${e.message}")
+        }
+    }
+
+    /**
+     * Update Google Pay payment amount dynamically
+     *
+     * @param amount The amount in cents.
+     */
+    private fun updatePaymentAmount(amount: Int) {
+        if (!::googlePayComponent.isInitialized) return
+
+        try {
+            // Extract currency from configuration
+            val googlePayConfig = this.params?.get("googlePayConfig") as? Map<*, *>
+            val currency = googlePayConfig?.get("currencyCode") as? String ?: "USD"
+
+            Log.d(TAG, "Updating Google Pay amount to: $amount $currency")
+            val updateDetails = UpdateDetails(amount = amount, currency = currency)
+            googlePayComponent.update(updateDetails)
+        } catch (e: Exception) {
+            Log.e(TAG, "Failed to update Google Pay amount", e)
+            sendError(
+                ErrorCode.PAYMENT_ERROR,
+                "Failed to update Google Pay amount: ${e.message}"
+            )
         }
     }
 
@@ -360,6 +453,36 @@ class GooglePayPlatformView(
         }
     }
 
+    /**
+     * Send onSubmit event to Flutter
+     * Called when the component is submitted (e.g., Google Pay sheet is about to open)
+     */
+    private fun sendOnSubmit() {
+        runOnMainThread {
+            try {
+                channel.invokeMethod("onSubmit", null)
+                Log.d(TAG, "onSubmit event sent to Flutter")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send onSubmit event", e)
+            }
+        }
+    }
+
+    /**
+     * Send onDismissed event to Flutter
+     * Called when the payment sheet is dismissed by the user
+     */
+    private fun sendOnDismissed() {
+        runOnMainThread {
+            try {
+                channel.invokeMethod("onDismissed", null)
+                Log.d(TAG, "onDismissed event sent to Flutter")
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to send onDismissed event", e)
+            }
+        }
+    }
+
     // ==================== PRIVATE HELPER METHODS ====================
 
     /**
@@ -383,6 +506,15 @@ class GooglePayPlatformView(
             result.error(ErrorCode.INVALID_STATE.name, "Google Pay component not ready", null)
             return
         }
+
+        // Simple debounce to prevent double-taps opening multiple sheets
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastTokenizeTime < 1000) { // 1 second debounce
+            Log.w(TAG, "Ignoring rapid tokenization request")
+            result.error(ErrorCode.INVALID_STATE.name, "Ignoring rapid request", null)
+            return
+        }
+        lastTokenizeTime = currentTime
 
         Log.d(TAG, "Starting Google Pay tokenization...")
 
@@ -460,6 +592,7 @@ class GooglePayPlatformView(
 
     override fun dispose() {
         try {
+            activity.lifecycle.removeObserver(lifecycleObserver)
             scope.cancel()
             isInitialized.set(false)
             isInitializing.set(false)
@@ -491,5 +624,6 @@ class GooglePayPlatformView(
         private const val CHANNEL_NAME = "checkout_bridge"
         private const val INITIALIZATION_TIMEOUT_MS = 30000L // 30 seconds
         private const val TOKENIZATION_TIMEOUT_MS = 15000L // 15 seconds
+        private var lastTokenizeTime = 0L
     }
 }

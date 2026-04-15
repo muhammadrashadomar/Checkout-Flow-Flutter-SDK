@@ -1,17 +1,19 @@
 import CheckoutComponentsSDK
 import Flutter
-import PassKit
 import SwiftUI
 import UIKit
 
-final class ApplePayPlatformView: NSObject, FlutterPlatformView {
+final class CardPlatformView: NSObject, FlutterPlatformView {
     private let channel: FlutterMethodChannel
     private let args: [String: Any]
     private let containerView: UIView
 
     private var hostingController: UIHostingController<AnyView>?
     private var checkoutComponents: CheckoutSDK?
-    private var applePayComponent: CheckoutActionable?
+    private var cardComponent: CheckoutActionable?
+    private var hasSentReady = false
+    private var lastValidationState: Bool?
+    private var lastBin: String?
 
     init(
         frame: CGRect,
@@ -28,23 +30,31 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
 
         super.init()
 
+        let tapGesture = UITapGestureRecognizer(target: self, action: #selector(handleBackgroundTap))
+        tapGesture.cancelsTouchesInView = false
+        self.containerView.addGestureRecognizer(tapGesture)
+
         initializeComponent()
+    }
+
+    @objc private func handleBackgroundTap() {
+        containerView.endEditing(true)
     }
 
     func view() -> UIView {
         containerView
     }
 
-    func checkAvailability() -> Bool {
-        applePayComponent?.isAvailable ?? PKPaymentAuthorizationController.canMakePayments()
+    func validateCard() -> Bool {
+        cardComponent?.isValid ?? false
     }
 
-    func tokenizeApplePay(result: @escaping FlutterResult) {
-        guard let applePayComponent else {
+    func tokenizeCard(result: @escaping FlutterResult) {
+        guard let cardComponent else {
             result(
                 FlutterError(
-                    code: "APPLEPAY_NOT_READY",
-                    message: "Apple Pay component not initialized",
+                    code: "CARD_NOT_READY",
+                    message: "Card component not initialized",
                     details: nil
                 )
             )
@@ -52,17 +62,17 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
         }
 
         DispatchQueue.main.async {
-            applePayComponent.submit()
+            cardComponent.tokenize()
             result(["status": "processing"])
         }
     }
 
     func getSessionData(result: @escaping FlutterResult) {
-        guard let applePayComponent else {
+        guard let cardComponent else {
             result(
                 FlutterError(
-                    code: "APPLEPAY_NOT_READY",
-                    message: "Apple Pay component not initialized",
+                    code: "CARD_NOT_READY",
+                    message: "Card component not initialized",
                     details: nil
                 )
             )
@@ -70,7 +80,7 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
         }
 
         DispatchQueue.main.async {
-            applePayComponent.submit()
+            cardComponent.submit()
             result(["status": "processing"])
         }
     }
@@ -85,20 +95,8 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
             !publicKey.isEmpty
         else {
             sendError(
-                code: "INVALID_CONFIG",
+                code: "INIT_ERROR",
                 message: "Missing required payment session parameters"
-            )
-            return
-        }
-
-        let applePayConfig = args["applePayConfig"] as? [String: Any]
-        guard
-            let merchantIdentifier = applePayConfig?["merchantIdentifier"] as? String,
-            !merchantIdentifier.isEmpty
-        else {
-            sendError(
-                code: "INVALID_CONFIG",
-                message: "Apple Pay merchant identifier is required"
             )
             return
         }
@@ -107,9 +105,24 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
             id: sessionId,
             paymentSessionSecret: sessionSecret
         )
+        let appearance = checkoutDesignTokens(from: args)
+        let cardConfiguration = checkoutCardConfiguration(from: args)
         let callbacks = CheckoutSDK.Callbacks(
+            handleTap: { paymentMethod async -> Bool in
+                return true
+            },
+            onChange: { [weak self] component in
+                self?.sendValidationState(isValid: component.isValid)
+            },
+            onCardBinChanged: { [weak self] metadata in
+                self?.sendCardBinChanged(metadata)
+                return .accepted
+            },
             onTokenized: { [weak self] result in
-                self?.sendTokenizationResult(result.data)
+                self?.sendCardTokenized(result.data)
+                if let metadata = result.cardMetadata {
+                    self?.sendCardBinChanged(metadata)
+                }
                 return .accepted
             },
             handleSubmit: { [weak self] sessionData in
@@ -132,32 +145,37 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
                     paymentSession: paymentSession,
                     publicKey: publicKey,
                     environment: checkoutEnvironment(from: args["environment"] as? String),
-                    appearance: checkoutDesignTokens(from: args),
-                    callbacks: callbacks
+                    appearance: appearance,
+                    callbacks: callbacks,
                 )
                 let checkout = CheckoutSDK(configuration: configuration)
                 let component = try checkout.create(
-                    .applePay(
-                        merchantIdentifier: merchantIdentifier,
-                        showPayButton: true
+                    .card(
+                        showPayButton: false,
+                        paymentButtonAction: .tokenization,
+                        cardConfiguration: cardConfiguration,
+                        rememberMeConfiguration: CheckoutSDK.RememberMeConfiguration(
+                            showPayButton: false)
                     )
                 )
 
                 guard component.isAvailable else {
                     sendError(
-                        code: "APPLEPAY_NOT_AVAILABLE",
-                        message: "Apple Pay is not available on this device"
+                        code: "CARD_NOT_AVAILABLE",
+                        message: "Card payment method is not available"
                     )
                     return
                 }
 
                 checkoutComponents = checkout
-                applePayComponent = component
+                cardComponent = component
                 embedSwiftUIView(component.render())
+                sendCardReadyIfNeeded()
+                sendValidationState(isValid: component.isValid)
             } catch let error as CheckoutSDK.Error {
-                sendCheckoutError(error, defaultCode: "INITIALIZATION_FAILED")
+                sendCheckoutError(error, defaultCode: "INIT_ERROR")
             } catch {
-                sendError(code: "INITIALIZATION_FAILED", message: error.localizedDescription)
+                sendError(code: "INIT_ERROR", message: error.localizedDescription)
             }
         }
     }
@@ -166,14 +184,31 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
     private func embedSwiftUIView(_ view: AnyView) {
         let hostingController = UIHostingController(rootView: view)
         hostingController.view.backgroundColor = .clear
-        hostingController.view.frame = containerView.bounds
-        hostingController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        hostingController.view.translatesAutoresizingMaskIntoConstraints = false
 
+        // Important: Improve layout behavior
+        hostingController.view.setContentHuggingPriority(.required, for: .vertical)
+        hostingController.view.setContentCompressionResistancePriority(.required, for: .vertical)
+
+        // Container setup
+        containerView.clipsToBounds = true
         containerView.addSubview(hostingController.view)
+
         self.hostingController = hostingController
+
+        NSLayoutConstraint.activate([
+            hostingController.view.topAnchor.constraint(equalTo: containerView.topAnchor),
+            hostingController.view.leadingAnchor.constraint(equalTo: containerView.leadingAnchor),
+            hostingController.view.trailingAnchor.constraint(equalTo: containerView.trailingAnchor),
+            hostingController.view.bottomAnchor.constraint(equalTo: containerView.bottomAnchor),
+        ])
+
+        containerView.layoutIfNeeded()
     }
 
-    private func sendTokenizationResult(_ tokenDetails: CheckoutSDK.TokenDetails) {
+    // MARK: - Flutter channel senders
+
+    private func sendCardTokenized(_ tokenDetails: CheckoutSDK.TokenDetails) {
         invokeMethod(
             "cardTokenized",
             arguments: ["tokenDetails": checkoutTokenDetailsMap(tokenDetails)]
@@ -182,6 +217,24 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
 
     private func sendSessionData(_ sessionData: String) {
         invokeMethod("sessionDataReady", arguments: ["sessionData": sessionData])
+    }
+
+    private func sendCardReadyIfNeeded() {
+        guard !hasSentReady else { return }
+        hasSentReady = true
+        invokeMethod("cardReady", arguments: nil)
+    }
+
+    private func sendValidationState(isValid: Bool) {
+        guard lastValidationState != isValid else { return }
+        lastValidationState = isValid
+        invokeMethod("validationChanged", arguments: ["isValid": isValid])
+    }
+
+    private func sendCardBinChanged(_ metadata: CheckoutCardMetadata) {
+        guard lastBin != metadata.bin else { return }
+        lastBin = metadata.bin
+        invokeMethod("cardBinChanged", arguments: checkoutCardMetadataMap(metadata))
     }
 
     private func sendPaymentSuccess(_ paymentId: String) {
@@ -203,8 +256,12 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
     }
 
     private func invokeMethod(_ method: String, arguments: Any?) {
-        DispatchQueue.main.async { [channel] in
+        if Thread.isMainThread {
             channel.invokeMethod(method, arguments: arguments)
+        } else {
+            DispatchQueue.main.async { [weak self] in
+                self?.channel.invokeMethod(method, arguments: arguments)
+            }
         }
     }
 }

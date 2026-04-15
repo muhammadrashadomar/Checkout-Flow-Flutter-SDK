@@ -83,19 +83,9 @@ public class CheckoutFlutterBridgePlugin: NSObject, FlutterPlugin {
                 result(PKPaymentAuthorizationController.canMakePayments())
             }
 
-        case "getApplePaySessionData":
-            guard let applePayPlatformView else {
-                result(
-                    FlutterError(
-                        code: "APPLEPAY_NOT_READY",
-                        message: "Apple Pay view not initialized",
-                        details: nil
-                    )
-                )
-                return
-            }
-
-            applePayPlatformView.getSessionData(result: result)
+        // Apple Pay is self-contained: the button triggers the payment sheet,
+        // the Checkout SDK handles the payment flow automatically, and the
+        // sheet returns success via the onSuccess callback.
 
         case "tokenizeApplePay":
             guard let applePayPlatformView else {

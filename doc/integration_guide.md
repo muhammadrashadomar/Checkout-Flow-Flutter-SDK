@@ -18,13 +18,13 @@ Add the package to your `pubspec.yaml`:
 
 ```yaml
 dependencies:
-  checkout_flutter_bridge:
-    path: path/to/checkout_flutter_bridge
+  checkout_flow_flutter_sdk:
+    path: path/to/checkout_flow_flutter_sdk
     # Or use git:
-    # checkout_flutter_bridge:
+    # checkout_flow_flutter_sdk:
     #   git:
-    #     url: https://github.com/muhammadrashadomar/checkout_flutter_bridge.git
-    #     path: checkout_flutter_bridge
+    #     url: https://github.com/muhammadrashadomar/checkout_flow_flutter_sdk.git
+    #     path: checkout_flow_flutter_sdk
     #     ref: main
 ```
 
@@ -95,7 +95,7 @@ android {
 ### Step 1: Import the Package
 
 ```dart
-import 'package:checkout_flutter_bridge/checkout_flutter_bridge.dart';
+import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
 ```
 
 ### Step 2: Create a Payment Service
@@ -470,5 +470,5 @@ Use Checkout.com test cards:
 ## Support
 
 For issues:
-- GitHub: [Report an issue](https://github.com/muhammadrashadomar/checkout_flutter_bridge/issues)
+- GitHub: [Report an issue](https://github.com/muhammadrashadomar/checkout_flow_flutter_sdk/issues)
 - Documentation: [Full docs](../README.md)

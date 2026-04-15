@@ -1,9 +1,9 @@
 import 'dart:async';
 
-import 'package:checkout_flutter_bridge/src/models/card_metadata.dart';
-import 'package:checkout_flutter_bridge/src/models/current_payment_type.dart';
-import 'package:checkout_flutter_bridge/src/models/session_result.dart';
-import 'package:checkout_flutter_bridge/src/utils/console_logger.dart';
+import 'package:checkout_flow_flutter_sdk/src/models/card_metadata.dart';
+import 'package:checkout_flow_flutter_sdk/src/models/current_payment_type.dart';
+import 'package:checkout_flow_flutter_sdk/src/models/session_result.dart';
+import 'package:checkout_flow_flutter_sdk/src/utils/console_logger.dart';
 import 'package:flutter/services.dart';
 
 import '../models/payment_config.dart';
@@ -30,9 +30,12 @@ class PaymentBridge {
   Function(String)? onSessionData;
   Function()? onCardReady;
   Function()? onGooglePayReady;
+  Function()? onApplePayReady;
   Function(bool)? onValidationChanged;
   Function(CardMetadata)? onCardBinChanged;
   Function(double)? onHeightChanged;
+  Function()? onSubmitted;
+  Function()? onDismissed;
 
   /// Initialize the payment bridge and set up method call handler
   void initialize() {
@@ -80,8 +83,19 @@ class PaymentBridge {
         _handleGooglePayReady();
         break;
 
+      case 'applePayReady':
+        _handleApplePayReady();
+        break;
+
       case 'heightChanged':
         _handleHeightChanged(call.arguments);
+        break;
+      case 'onSubmit':
+        _handleOnSubmit();
+        break;
+
+      case 'onDismissed':
+        _handleOnDismissed();
         break;
 
       default:
@@ -169,6 +183,11 @@ class PaymentBridge {
     onGooglePayReady?.call();
   }
 
+  void _handleApplePayReady() {
+    ConsoleLogger.success('Apple Pay view ready');
+    onApplePayReady?.call();
+  }
+
   void _handleValidationChanged(dynamic arguments) {
     if (arguments == null) {
       ConsoleLogger.error('validationChanged arguments are null!');
@@ -201,6 +220,16 @@ class PaymentBridge {
     } catch (e) {
       ConsoleLogger.error('Error processing height change: $e');
     }
+  }
+
+  void _handleOnSubmit() {
+    ConsoleLogger.debug('Payment sheet submitted');
+    onSubmitted?.call();
+  }
+
+  void _handleOnDismissed() {
+    ConsoleLogger.debug('Payment sheet dismissed');
+    onDismissed?.call();
   }
 
   // ==================== CARD METHODS ====================
@@ -619,7 +648,13 @@ class PaymentBridge {
     }
   }
 
-  /// Get Apple Pay session data (iOS only)
+
+  /// Returns Apple Pay session data (iOS only).
+  ///
+  /// Deprecated: Apple Pay is now self-contained — the button triggers the
+  /// payment sheet automatically and the SDK processes the payment internally.
+  /// Listen to the [onPaymentSuccess] callback for the result.
+  @Deprecated('Apple Pay is now self-contained. Listen to onPaymentSuccess instead.')
   Future<String> getApplePaySessionData() async {
     initialize();
     final completer = Completer<String>();
@@ -633,18 +668,12 @@ class PaymentBridge {
     };
 
     try {
-      ConsoleLogger.payment('Getting Apple Pay session data...');
-      await _channel.invokeMethod('getApplePaySessionData');
-      return await completer.future;
-    } on PlatformException catch (e) {
-      ConsoleLogger.error('Get Apple Pay session data failed: ${e.message}');
-      onPaymentError?.call(
-        PaymentErrorResult(
-          errorCode: e.code,
-          errorMessage: e.message ?? 'Failed to get session data',
-        ),
+      // Session data now arrives automatically — no channel invoke needed.
+      ConsoleLogger.warning(
+        'getApplePaySessionData is deprecated. '
+        'Listen to onSessionData and call completeApplePay() instead.',
       );
-      rethrow;
+      return await completer.future;
     } finally {
       onSessionData = previousSessionCallback;
     }
@@ -660,9 +689,12 @@ class PaymentBridge {
     onSessionData = null;
     onCardReady = null;
     onGooglePayReady = null;
+    onApplePayReady = null;
     onValidationChanged = null;
     onCardBinChanged = null;
     onHeightChanged = null;
+    onSubmitted = null;
+    onDismissed = null;
   }
 
   /// Clear payment type tracker

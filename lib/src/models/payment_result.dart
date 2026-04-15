@@ -52,10 +52,9 @@ class CardTokenResult {
     // Handle nested tokenDetails structure (from card component)
     // Need to convert Map<Object?, Object?> to Map<String, dynamic>
     final tokenDetailsRaw = map['tokenDetails'];
-    final tokenDetails =
-        tokenDetailsRaw != null
-            ? Map<String, dynamic>.from(tokenDetailsRaw as Map)
-            : null;
+    final tokenDetails = tokenDetailsRaw != null
+        ? Map<String, dynamic>.from(tokenDetailsRaw as Map)
+        : null;
 
     // If tokenDetails exists, use it; otherwise use direct map (Google Pay)
     final data = tokenDetails ?? map;
@@ -144,11 +143,13 @@ class PaymentErrorResult {
       final code =
           map['errorCode'] as String? ?? map['code'] as String? ?? 'UNKNOWN';
       return PaymentErrorResult(
-        // Native code sends 'errorCode' and 'errorMessage' keys
+        // Native sends 'errorCode' (machine key) and 'errorMessage' (human text).
+        // 'sdkErrorCode' is a detail field (the raw SDK code string), NOT the
+        // display message — so 'errorMessage' must take priority here.
         errorCode: code,
         errorMessage:
             map['errorMessage'] as String? ??
-            map['message'] as String? ??
+            map['sdkErrorCode'] as String? ??
             'Unknown error',
         errorType: PaymentErrorCode.fromString(code),
         details: map,
@@ -162,6 +163,9 @@ class PaymentErrorResult {
 
   /// Check if this is a Google Pay error
   bool get isGooglePayError => errorType.isGooglePayError;
+
+  /// Check if this is an Apple Pay error
+  bool get isApplePayError => errorType.isApplePayError;
 
   /// Check if this is a card payment error
   bool get isCardError => errorType.isCardError;

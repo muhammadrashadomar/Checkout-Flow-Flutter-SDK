@@ -120,7 +120,9 @@ func checkoutErrorPayload(
     return payload
 }
 
-func checkoutErrorPayload(from error: CheckoutSDK.Error, code: String = "CHECKOUT_ERROR") -> [String: Any] {
+func checkoutErrorPayload(from error: CheckoutSDK.Error, code: String = "CHECKOUT_ERROR")
+    -> [String: Any]
+{
     var details: [String: Any] = [
         "sdkErrorCode": error.errorCode.description,
         "sdkErrorType": error.type.rawValue,
@@ -152,7 +154,7 @@ private func checkoutPhoneMap(_ phone: CheckoutSDK.Phone) -> [String: Any] {
 
 private func checkoutAddressMap(_ address: CheckoutSDK.Address) -> [String: Any] {
     var map: [String: Any] = [
-        "country": address.country.rawValue,
+        "country": address.country.rawValue
     ]
 
     map["addressLine1"] = address.addressLine1
@@ -187,8 +189,8 @@ private func checkoutARGBValue(from rawValue: Any?) -> UInt32? {
     }
 }
 
-private extension UIColor {
-    convenience init(argb: UInt32) {
+extension UIColor {
+    fileprivate convenience init(argb: UInt32) {
         let alpha = CGFloat((argb >> 24) & 0xFF) / 255
         let red = CGFloat((argb >> 16) & 0xFF) / 255
         let green = CGFloat((argb >> 8) & 0xFF) / 255

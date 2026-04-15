@@ -116,6 +116,34 @@ channel.invokeMethod("paymentError", errorData)
 
 ---
 
+### 3. iOS Native Layer (Swift)
+
+#### **CheckoutFlutterBridgePlugin** (`CheckoutFlutterBridgePlugin.swift`)
+
+- Registers platform view factories (`CardViewFactory`, `ApplePayViewFactory`)
+- Handles method calls from Flutter and delegates to the appropriate view instance
+- Tracks active view references via weak pointers
+
+#### **CardPlatformView** (`CardPlatformView.swift`)
+
+**Responsibilities:**
+- Renders the Checkout SDK card component
+- Uses `UIHostingController` to embed SwiftUI components into UIKit (Flutter's requirement)
+- Manages SDK initialization and tokenization triggers
+- Communicates real-time validation and card data events back to Flutter
+
+**Technical Implementation:**
+See [NATIVE_RENDERING_IOS.md](file:///Users/mohamedrashad/Dev/Projects/Checkout-Flow-Flutter-SDK/doc/NATIVE_RENDERING_IOS.md) for a detailed breakdown of the SwiftUI/UIKit bridge.
+
+**Callbacks to Flutter:**
+```swift
+channel.invokeMethod("cardTokenized", arguments: ["tokenDetails": ...])
+channel.invokeMethod("validationChanged", arguments: ["isValid": ...])
+channel.invokeMethod("paymentSuccess", arguments: paymentId)
+```
+
+---
+
 ## Flow Diagrams
 
 ### Card Tokenization Flow

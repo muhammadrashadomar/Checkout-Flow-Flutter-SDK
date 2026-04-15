@@ -1,4 +1,4 @@
-import 'package:checkout_flutter_bridge/checkout_flutter_bridge.dart';
+import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
 import 'package:flutter/material.dart';
 
 /// Example showing how to use PaymentErrorCode enum for type-safe error handling
@@ -69,6 +69,10 @@ class PaymentErrorHandlingExample extends StatelessWidget {
         );
         break;
 
+      case PaymentErrorCode.applePayCanceled:
+        // Handle cancellation
+        break;
+
       default:
         // Handle all other errors
         _showErrorDialog(
@@ -109,25 +113,24 @@ class PaymentErrorHandlingExample extends StatelessWidget {
   }) {
     showDialog(
       context: context,
-      builder:
-          (context) => AlertDialog(
-            title: Text(title),
-            content: Text(message),
-            actions: [
-              if (showRetry)
-                TextButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    // Implement retry logic
-                  },
-                  child: const Text('Retry'),
-                ),
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text('OK'),
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: Text(title),
+        content: Text(message),
+        actions: [
+          if (showRetry)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                // Implement retry logic
+              },
+              child: const Text('Retry'),
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('OK'),
           ),
+        ],
+      ),
     );
   }
 }
@@ -166,11 +169,15 @@ void errorHandlingQuickReference(PaymentErrorResult error) {
     case PaymentErrorCode.googlepayNotAvailable:
     case PaymentErrorCode.applePayNotReady:
     case PaymentErrorCode.applePayNotAvailable:
+    case PaymentErrorCode.applePayCanceled:
     case PaymentErrorCode.invalidState:
     case PaymentErrorCode.paymentError:
     case PaymentErrorCode.launchError:
     case PaymentErrorCode.checkoutError:
     case PaymentErrorCode.unknown:
+    case PaymentErrorCode.applePayPaymentDeclined:
+    case PaymentErrorCode.updateAmountFailed:
+    case PaymentErrorCode.applePayUserCanceled:
       // Handle each error type
       break;
   }

@@ -18,8 +18,16 @@ enum PaymentErrorCode {
   invalidState('INVALID_STATE'),
   paymentError('PAYMENT_ERROR'),
   tokenizationFailed('TOKENIZATION_FAILED'),
+  // Apple Pay errors
   applePayNotReady('APPLEPAY_NOT_READY'),
   applePayNotAvailable('APPLEPAY_NOT_AVAILABLE'),
+  applePayCanceled('APPLE_PAY_CANCELED'),
+  /// User explicitly tapped Cancel on the Apple Pay sheet.
+  applePayUserCanceled('APPLEPAY_USER_CANCELED'),
+  /// Backend rejected the charge after session data was submitted.
+  applePayPaymentDeclined('APPLEPAY_PAYMENT_DECLINED'),
+  /// The `.update(with:)` amount-update call on the native SDK failed.
+  updateAmountFailed('UPDATE_AMOUNT_FAILED'),
 
   // Generic errors
   unknown('UNKNOWN');
@@ -41,6 +49,19 @@ enum PaymentErrorCode {
   bool get isGooglePayError {
     return this == googlepayUnavailable ||
         this == googlepayNotAvailable ||
+        this == invalidConfig ||
+        this == initializationFailed ||
+        this == timeout ||
+        this == invalidState ||
+        this == tokenizationFailed;
+  }
+
+  bool get isApplePayError {
+    return this == applePayNotReady ||
+        this == applePayNotAvailable ||
+        this == applePayCanceled ||
+        this == applePayUserCanceled ||
+        this == applePayPaymentDeclined ||
         this == invalidConfig ||
         this == initializationFailed ||
         this == timeout ||
@@ -101,6 +122,16 @@ enum PaymentErrorCode {
 
       case PaymentErrorCode.applePayNotAvailable:
         return 'Apple Pay is not available on this device.';
+
+      case PaymentErrorCode.applePayCanceled:
+      case PaymentErrorCode.applePayUserCanceled:
+        return 'Apple Pay was cancelled.';
+
+      case PaymentErrorCode.applePayPaymentDeclined:
+        return 'Your Apple Pay payment was declined. Please try another card or payment method.';
+
+      case PaymentErrorCode.updateAmountFailed:
+        return 'Failed to update the payment amount. Please try again.';
 
       case PaymentErrorCode.invalidConfig:
         return 'Payment configuration error. Please contact support.';

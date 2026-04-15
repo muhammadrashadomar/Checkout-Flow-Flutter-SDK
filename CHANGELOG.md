@@ -3,7 +3,7 @@
 ## [0.1.0] - 2025-11-26
 
 ### Added
-- Initial release of checkout_flutter_bridge
+- Initial release of checkout_flow_flutter_sdk
 - Card tokenization support via Checkout.com SDK
 - Google Pay integration with tokenization
 - Saved card flow with CVV input
