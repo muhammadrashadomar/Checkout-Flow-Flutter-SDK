@@ -154,16 +154,19 @@ class FontConfig {
 class CardConfig {
   final bool showCardholderName;
   final bool enableBillingAddress;
+  final bool showRememberMe;
 
   const CardConfig({
     this.showCardholderName = false,
     this.enableBillingAddress = false,
+    this.showRememberMe = false,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'showCardholderName': showCardholderName,
       'enableBillingAddress': enableBillingAddress,
+      'showRememberMe': showRememberMe,
     };
   }
 
@@ -173,11 +176,14 @@ class CardConfig {
       other is CardConfig &&
           runtimeType == other.runtimeType &&
           showCardholderName == other.showCardholderName &&
-          enableBillingAddress == other.enableBillingAddress;
+          enableBillingAddress == other.enableBillingAddress &&
+          showRememberMe == other.showRememberMe;
 
   @override
   int get hashCode =>
-      showCardholderName.hashCode ^ enableBillingAddress.hashCode;
+      showCardholderName.hashCode ^
+      enableBillingAddress.hashCode ^
+      showRememberMe.hashCode;
 }
 
 class GooglePayConfig {

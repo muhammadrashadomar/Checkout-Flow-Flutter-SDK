@@ -149,13 +149,16 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
                     callbacks: callbacks,
                 )
                 let checkout = CheckoutSDK(configuration: configuration)
+                let cardConfig = args["cardConfig"] as? [String: Any]
+                let showRememberMe = cardConfig?["showRememberMe"] as? Bool ?? false
+
                 let component = try checkout.create(
                     .card(
                         showPayButton: false,
                         paymentButtonAction: .tokenization,
                         cardConfiguration: cardConfiguration,
-                        rememberMeConfiguration: CheckoutSDK.RememberMeConfiguration(
-                            showPayButton: false)
+                        rememberMeConfiguration: showRememberMe
+                            ? CheckoutSDK.RememberMeConfiguration(showPayButton: false) : nil
                     )
                 )
 

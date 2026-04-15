@@ -104,6 +104,7 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
                 val hasSavedCardConfig = params.containsKey("savedCardConfig")
                 val cardConfig = params["cardConfig"] as? Map<*, *>
                 val showCardholderName = cardConfig?.get("showCardholderName") as? Boolean ?: false
+                val showRememberMe = cardConfig?.get("showRememberMe") as? Boolean ?: false
 
                 // Build component callback
                 val componentCallback = createComponentCallback()
@@ -128,7 +129,10 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
                                                                         CardholderNamePosition.TOP
                                                                 else CardholderNamePosition.HIDDEN
                                                 ),
-                                        rememberMeConfiguration = RememberMeConfiguration(showPayButton = false)
+                                        rememberMeConfiguration =
+                                                if (showRememberMe)
+                                                        RememberMeConfiguration(showPayButton = false)
+                                                else null
                                 )
                         }
 

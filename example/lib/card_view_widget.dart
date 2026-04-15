@@ -30,6 +30,7 @@ class _CheckoutCardViewState extends State<CheckoutCardView> {
       padding: const EdgeInsets.all(20.0),
       child: CheckoutFlowCardView(
         paymentConfig: widget.paymentConfig,
+        cardConfig: CardConfig(showRememberMe: false),
         loader: const Center(child: CircularProgressIndicator()),
         onReady: () {
           widget.onReady?.call();
@@ -81,8 +82,9 @@ class _AddCardViewBody extends StatelessWidget {
       onTap: () => FocusScope.of(context).unfocus(),
       behavior: HitTestBehavior.opaque,
       child: Padding(
-        padding:
-            EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
         child: SingleChildScrollView(
           child: Column(
             mainAxisSize: MainAxisSize.min,
