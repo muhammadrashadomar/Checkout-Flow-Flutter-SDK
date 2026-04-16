@@ -35,7 +35,7 @@ let package = Package(
             name: "CheckoutComponentsSDK",
             url:
                 "https://github.com/checkout/checkout-ios-components/releases/download/1.8.0/CheckoutComponentsSDK.xcframework.zip",
-            checksum: "e0148b3f16bb2d54a9f4bd36c861961f1c621ba5db3aca8afb7b4e01a802294b"
+            checksum: "9b97ce5f673903e01a0a5566c696aaf415ea950ead60ab9598d749dd90225b94"
         ),
     ]
 )
