@@ -157,8 +157,7 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
                         showPayButton: false,
                         paymentButtonAction: .tokenization,
                         cardConfiguration: cardConfiguration,
-                        rememberMeConfiguration: showRememberMe
-                            ? CheckoutSDK.RememberMeConfiguration(showPayButton: false) : nil
+                        rememberMeConfiguration: nil
                     )
                 )
 

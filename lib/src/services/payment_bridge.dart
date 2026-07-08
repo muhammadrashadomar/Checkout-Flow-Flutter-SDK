@@ -22,6 +22,7 @@ class PaymentBridge {
   }
 
   bool _isInitialized = false;
+  CardTokenResult? _cachedCardToken;
 
   // Callbacks for payment events
   Function(CardTokenResult)? onCardTokenized;
@@ -113,6 +114,7 @@ class PaymentBridge {
       // Convert from Map<Object?, Object?> to Map<String, dynamic>
       final args = Map<String, dynamic>.from(arguments as Map);
       final result = CardTokenResult.fromMap(args);
+      _cachedCardToken = result;
       ConsoleLogger.success('Card tokenized successfully');
       onCardTokenized?.call(result);
     } catch (e) {
@@ -419,6 +421,11 @@ class PaymentBridge {
       // Return the result
       return SessionResult(token: tokenResult, sessionData: sessionData);
     } on PlatformException catch (e) {
+      if (e.code == 'CARD_NOT_READY' && _cachedCardToken != null) {
+        ConsoleLogger.warning('Card view not initialized, but returning previously tokenized card.');
+        return SessionResult(token: _cachedCardToken!, sessionData: '');
+      }
+
       ConsoleLogger.error('Submit failed: ${e.message}');
       onPaymentError?.call(
         PaymentErrorResult(

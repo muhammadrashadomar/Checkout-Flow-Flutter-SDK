@@ -8,8 +8,8 @@ import 'package:example/google_pay_button.dart';
 import 'package:flutter/material.dart';
 
 // Google Pay Configuration
-const String paymentSessionId = 'ps_3COMpx7thYiH0NXH03bwdk30LxP';
-const String paymentSessionSecret = 'pss_7d8388ea-57be-4cf2-a3ac-0b17b55424b1';
+const String paymentSessionId = 'ps_3GDwz5VzGDa5FaPx3UATdfke0rN';
+const String paymentSessionSecret = 'pss_51fee728-3e95-412e-ad53-56e475b88a53';
 const String publicKey = 'pk_sbox_fjizign6afqbt3btt3ialiku74s';
 
 // Payment configuration
@@ -175,13 +175,13 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
           Spacer(),
 
-          Opacity(
-            opacity: _isBottomSheetOpen ? 0.0 : 1.0,
-            child: IgnorePointer(
-              ignoring: _isBottomSheetOpen,
-              child: const PaymentBtn(),
-            ),
-          ),
+          // Opacity(
+          //   opacity: _isBottomSheetOpen ? 0.0 : 1.0,
+          //   child: IgnorePointer(
+          //     ignoring: _isBottomSheetOpen,
+          //     child: const PaymentBtn(),
+          //   ),
+          // ),
         ],
       ),
     );

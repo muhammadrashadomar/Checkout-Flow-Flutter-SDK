@@ -83,7 +83,7 @@ class CheckoutFlowCardView extends StatefulWidget {
     this.onError,
     this.onHeightChanged,
     this.loader,
-    this.height = 350,
+    this.height = 200,
   });
 
   @override

@@ -96,6 +96,9 @@ class _AddCardViewBody extends StatelessWidget {
                   final result = await PaymentBridge().tokenizeCard();
 
                   ConsoleLogger.success("Tokenized: ${result.token}");
+                  if (context.mounted) {
+                    Navigator.of(context).pop();
+                  }
                 },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.blue,

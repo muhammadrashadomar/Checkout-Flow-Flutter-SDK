@@ -129,10 +129,7 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
                                                                         CardholderNamePosition.TOP
                                                                 else CardholderNamePosition.HIDDEN
                                                 ),
-                                        rememberMeConfiguration =
-                                                if (showRememberMe)
-                                                        RememberMeConfiguration(showPayButton = false)
-                                                else null
+                                        rememberMeConfiguration = null
                                 )
                         }
 
