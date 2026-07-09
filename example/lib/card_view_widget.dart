@@ -58,7 +58,7 @@ class _CheckoutCardViewState extends State<CheckoutCardView> {
 // Card View in Bottom sheet -------------------------------------------------
 Future<T?> kShowAddNewCardBottomSheet<T>(
   BuildContext context, {
-  required PaymentConfig paymentConfig,
+  required Widget cardViewWidget,
   Function(bool)? canPay,
 }) {
   return showModalBottomSheet<T>(
@@ -66,15 +66,15 @@ Future<T?> kShowAddNewCardBottomSheet<T>(
     backgroundColor: Colors.white,
     isScrollControlled: true,
     builder: (context) =>
-        _AddCardViewBody(paymentConfig: paymentConfig, canPay: canPay),
+        _AddCardViewBody(cardViewWidget: cardViewWidget, canPay: canPay),
   );
 }
 
 class _AddCardViewBody extends StatelessWidget {
-  const _AddCardViewBody({required this.canPay, required this.paymentConfig});
+  const _AddCardViewBody({required this.canPay, required this.cardViewWidget});
 
   final Function(bool)? canPay;
-  final PaymentConfig paymentConfig;
+  final Widget cardViewWidget;
 
   @override
   Widget build(BuildContext context) {
@@ -90,12 +90,15 @@ class _AddCardViewBody extends StatelessWidget {
             mainAxisSize: MainAxisSize.min,
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-              CheckoutCardView(paymentConfig: paymentConfig),
+              cardViewWidget,
               ElevatedButton(
                 onPressed: () async {
+                  // We just tokenize here to validate the card.
+                  // Session data will be fetched by the "Pay Now" button on the main screen!
                   final result = await PaymentBridge().tokenizeCard();
 
-                  ConsoleLogger.success("Tokenized: ${result.token}");
+                  ConsoleLogger.success('Tokenized: ${result.token}');
+
                   if (context.mounted) {
                     Navigator.of(context).pop();
                   }

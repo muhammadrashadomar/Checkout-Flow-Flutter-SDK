@@ -301,6 +301,63 @@ class PaymentBridge {
     }
   }
 
+  /// Tokenize the card **and** immediately fetch session data while the native
+  /// card view is still alive.
+  ///
+  /// Use this instead of calling [tokenizeCard] followed by [submit] separately,
+  /// which will fail if the card view is dismissed (e.g. bottom sheet closed)
+  /// between the two calls.
+  Future<SessionResult> tokenizeAndGetSessionData() async {
+    initialize();
+
+    final tokenCompleter = Completer<CardTokenResult>();
+    final sessionCompleter = Completer<String>();
+
+    final previousTokenCallback = onCardTokenized;
+    final previousSessionCallback = onSessionData;
+
+    onCardTokenized = (result) {
+      if (!tokenCompleter.isCompleted) {
+        tokenCompleter.complete(result);
+      }
+      previousTokenCallback?.call(result);
+    };
+
+    onSessionData = (data) {
+      if (!sessionCompleter.isCompleted) {
+        sessionCompleter.complete(data);
+      }
+      previousSessionCallback?.call(data);
+    };
+
+    try {
+      ConsoleLogger.payment('Requesting card tokenization...');
+      // Step 1: tokenize → fires cardTokenized callback
+      await _channel.invokeMethod('tokenizeCard');
+      final tokenResult = await tokenCompleter.future;
+
+      ConsoleLogger.payment('Requesting session data...');
+      // Step 2: submit → fires sessionDataReady callback (card view must be alive)
+      await _channel.invokeMethod('getSessionData');
+      final sessionData = await sessionCompleter.future;
+
+      return SessionResult(token: tokenResult, sessionData: sessionData);
+    } on PlatformException catch (e) {
+      ConsoleLogger.error('Tokenize + session data failed: ${e.message}');
+      onPaymentError?.call(
+        PaymentErrorResult(
+          errorCode: e.code,
+          errorMessage: e.message ?? 'Payment processing failed',
+        ),
+      );
+      rethrow;
+    } finally {
+      onCardTokenized = previousTokenCallback;
+      onSessionData = previousSessionCallback;
+    }
+  }
+
+
   void _handleCardBinChanged(dynamic arguments) {
     if (arguments == null) {
       ConsoleLogger.error('cardBinChanged arguments are null!');
@@ -378,20 +435,15 @@ class PaymentBridge {
 
   Future<SessionResult> submit(CurrentPaymentType paymentType) async {
     initialize();
-    final tokenCompleter = Completer<CardTokenResult>();
-    final sessionCompleter = Completer<String>();
+    ConsoleLogger.payment('Submitting payment...');
 
-    // Temporary callbacks to capture results
-    final previousTokenCallback = onCardTokenized;
+    // If the card was already tokenized before submit() was called,
+    // use it directly — getSessionData only triggers session data, not tokenization.
+    final existingToken = _cachedCardToken;
+
+    final sessionCompleter = Completer<String>();
     final previousSessionCallback = onSessionData;
 
-    onCardTokenized = (result) {
-      if (!tokenCompleter.isCompleted) {
-        tokenCompleter.complete(result);
-      }
-      // Restore previous if needed
-      if (previousTokenCallback != null) previousTokenCallback(result);
-    };
     onSessionData = (data) {
       if (!sessionCompleter.isCompleted) {
         sessionCompleter.complete(data);
@@ -399,10 +451,23 @@ class PaymentBridge {
       if (previousSessionCallback != null) previousSessionCallback(data);
     };
 
-    try {
-      ConsoleLogger.payment('Submitting payment...');
+    // For a fresh card flow (no cached token), we also need to capture
+    // the tokenization result that native will fire after submit().
+    Completer<CardTokenResult>? tokenCompleter;
+    Function(CardTokenResult)? previousTokenCallback;
 
-      // Determine which session data method to call based on current payment type
+    if (existingToken == null && paymentType.isCardSelected) {
+      tokenCompleter = Completer<CardTokenResult>();
+      previousTokenCallback = onCardTokenized;
+      onCardTokenized = (result) {
+        if (!tokenCompleter!.isCompleted) {
+          tokenCompleter.complete(result);
+        }
+        if (previousTokenCallback != null) previousTokenCallback(result);
+      };
+    }
+
+    try {
       if (paymentType.isGooglePaySelected) {
         ConsoleLogger.debug('Calling Google Pay session data');
         await _channel.invokeMethod('getGooglePaySessionData');
@@ -410,22 +475,28 @@ class PaymentBridge {
         ConsoleLogger.debug('Calling card session data');
         await _channel.invokeMethod('getSessionData');
       } else {
-        // Default to card if type is unknown
         ConsoleLogger.warning('Payment type unknown, defaulting to card');
         await _channel.invokeMethod('getSessionData');
       }
 
-      // Wait for both callbacks
-      final tokenResult = await tokenCompleter.future;
+      // Wait for session data from native.
       final sessionData = await sessionCompleter.future;
-      // Return the result
-      return SessionResult(token: tokenResult, sessionData: sessionData);
-    } on PlatformException catch (e) {
-      if (e.code == 'CARD_NOT_READY' && _cachedCardToken != null) {
-        ConsoleLogger.warning('Card view not initialized, but returning previously tokenized card.');
-        return SessionResult(token: _cachedCardToken!, sessionData: '');
+
+      // Resolve the token — either cached or freshly received.
+      final CardTokenResult tokenResult;
+      if (existingToken != null) {
+        tokenResult = existingToken;
+      } else if (tokenCompleter != null) {
+        tokenResult = await tokenCompleter.future;
+      } else {
+        throw PlatformException(
+          code: 'NO_TOKEN',
+          message: 'No card token available',
+        );
       }
 
+      return SessionResult(token: tokenResult, sessionData: sessionData);
+    } on PlatformException catch (e) {
       ConsoleLogger.error('Submit failed: ${e.message}');
       onPaymentError?.call(
         PaymentErrorResult(
@@ -435,9 +506,10 @@ class PaymentBridge {
       );
       rethrow;
     } finally {
-      // Restore original callbacks
-      onCardTokenized = previousTokenCallback;
       onSessionData = previousSessionCallback;
+      if (tokenCompleter != null) {
+        onCardTokenized = previousTokenCallback;
+      }
     }
   }
 
@@ -655,13 +727,14 @@ class PaymentBridge {
     }
   }
 
-
   /// Returns Apple Pay session data (iOS only).
   ///
   /// Deprecated: Apple Pay is now self-contained — the button triggers the
   /// payment sheet automatically and the SDK processes the payment internally.
   /// Listen to the [onPaymentSuccess] callback for the result.
-  @Deprecated('Apple Pay is now self-contained. Listen to onPaymentSuccess instead.')
+  @Deprecated(
+    'Apple Pay is now self-contained. Listen to onPaymentSuccess instead.',
+  )
   Future<String> getApplePaySessionData() async {
     initialize();
     final completer = Completer<String>();

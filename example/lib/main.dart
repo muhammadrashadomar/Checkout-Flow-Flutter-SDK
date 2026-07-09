@@ -8,8 +8,8 @@ import 'package:example/google_pay_button.dart';
 import 'package:flutter/material.dart';
 
 // Google Pay Configuration
-const String paymentSessionId = 'ps_3GDwz5VzGDa5FaPx3UATdfke0rN';
-const String paymentSessionSecret = 'pss_51fee728-3e95-412e-ad53-56e475b88a53';
+const String paymentSessionId = 'ps_3GFpW4kWUt614VOEWWdGBYFTg9F';
+const String paymentSessionSecret = 'pss_11a33576-347b-42cd-a4b8-bafae4324340';
 const String publicKey = 'pk_sbox_fjizign6afqbt3btt3ialiku74s';
 
 // Payment configuration
@@ -67,9 +67,27 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   var currentPaymentType = CurrentPaymentType.card;
+  bool _isReady = false;
+  bool _isValid = false;
   bool _isBottomSheetOpen = false;
 
+  // GlobalKey keeps the native view alive when moved between bottom sheet and main screen
+  final GlobalKey _cardViewKey = GlobalKey();
+
   final PaymentBridge _paymentBridge = PaymentBridge();
+
+  Widget _buildCardView() {
+    return CheckoutCardView(
+      key: _cardViewKey,
+      paymentConfig: _paymentConfig,
+      onReady: () {
+        if (mounted) setState(() => _isReady = true);
+      },
+      onValidInput: (valid) {
+        if (mounted) setState(() => _isValid = valid);
+      },
+    );
+  }
 
   @override
   void initState() {
@@ -131,17 +149,20 @@ class _PaymentScreenState extends State<PaymentScreen> {
           ),
 
           ElevatedButton(
-            onPressed: () {
+            onPressed: () async {
               setState(() => _isBottomSheetOpen = true);
-              kShowAddNewCardBottomSheet(
+
+              // Pass the card view into the bottom sheet
+              await kShowAddNewCardBottomSheet(
                 context,
-                paymentConfig: _paymentConfig,
-              ).whenComplete(() async {
-                await Future.delayed(const Duration(milliseconds: 200));
-                if (mounted) {
-                  setState(() => _isBottomSheetOpen = false);
-                }
-              });
+                cardViewWidget: _buildCardView(),
+              );
+
+              // When closed, reparent back to Offstage in the main screen
+              await Future.delayed(const Duration(milliseconds: 200));
+              if (mounted) {
+                setState(() => _isBottomSheetOpen = false);
+              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
@@ -151,17 +172,35 @@ class _PaymentScreenState extends State<PaymentScreen> {
             child: Text('Add New Card'),
           ),
 
-          SizedBox(height: 200),
-          ElevatedButton(
-            onPressed: () async {
-              // if (!_canPay) return;
-              // Payment will be triggered
-              // If card is invalid, onError will be called
-              final bridge = PaymentBridge();
-              final result = await bridge.submit(CurrentPaymentType.card);
+          // Render the card view offstage to keep it alive when bottom sheet is closed
+          Offstage(
+            offstage: true,
+            child: _isBottomSheetOpen ? const SizedBox.shrink() : _buildCardView(),
+          ),
 
-              ConsoleLogger.success("SessionData: ${result.sessionData}");
-            },
+          SizedBox(height: 32),
+
+          // 2. Pay Now button triggers submit() and gets the session data
+          ElevatedButton(
+            onPressed: (!_isReady || !_isValid)
+                ? null
+                : () async {
+                    try {
+                      // Because the view is still alive offstage, we can call submit()
+                      final bridge = PaymentBridge();
+                      final result = await bridge.submit(currentPaymentType);
+
+                      ConsoleLogger.success(
+                        "✅ SessionData returned: ${result.sessionData}",
+                      );
+
+                      // You now have the session data object here!
+                      // return result.sessionData;
+
+                    } catch (e) {
+                      ConsoleLogger.error("Failed to get session data: $e");
+                    }
+                  },
             style: ElevatedButton.styleFrom(
               fixedSize: Size(double.infinity, 50),
               shape: RoundedRectangleBorder(
