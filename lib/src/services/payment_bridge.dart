@@ -23,6 +23,7 @@ class PaymentBridge {
 
   bool _isInitialized = false;
   CardTokenResult? _cachedCardToken;
+  String? _cachedSessionData;
 
   // Callbacks for payment events
   Function(CardTokenResult)? onCardTokenized;
@@ -271,7 +272,10 @@ class PaymentBridge {
   Future<CardTokenResult> tokenizeCard() async {
     initialize();
     final completer = Completer<CardTokenResult>();
+    final sessionCompleter = Completer<String>();
+
     final previousTokenCallback = onCardTokenized;
+    final previousSessionCallback = onSessionData;
 
     onCardTokenized = (result) {
       if (!completer.isCompleted) {
@@ -280,12 +284,28 @@ class PaymentBridge {
       previousTokenCallback?.call(result);
     };
 
+    onSessionData = (data) {
+      if (!sessionCompleter.isCompleted) {
+        sessionCompleter.complete(data);
+      }
+      previousSessionCallback?.call(data);
+    };
+
     try {
       ConsoleLogger.payment('Requesting card tokenization...');
       await _channel.invokeMethod('tokenizeCard');
+      final tokenResult = await completer.future;
 
-      // Wait for callback
-      return await completer.future;
+      // Pre-fetch and cache the session data natively while the card view is still alive
+      try {
+        ConsoleLogger.payment('Pre-fetching session data internally...');
+        await _channel.invokeMethod('getSessionData');
+        _cachedSessionData = await sessionCompleter.future;
+      } catch (e) {
+        ConsoleLogger.warning('Failed to pre-fetch session data internally: $e');
+      }
+
+      return tokenResult;
     } on PlatformException catch (e) {
       ConsoleLogger.error('Tokenize card failed: ${e.message}');
       onPaymentError?.call(
@@ -298,6 +318,7 @@ class PaymentBridge {
     } finally {
       // Restore original callbacks
       onCardTokenized = previousTokenCallback;
+      onSessionData = previousSessionCallback;
     }
   }
 
@@ -436,6 +457,22 @@ class PaymentBridge {
   Future<SessionResult> submit(CurrentPaymentType paymentType) async {
     initialize();
     ConsoleLogger.payment('Submitting payment...');
+
+    // If session data was already pre-fetched during tokenization,
+    // return it immediately without hitting the native side again.
+    if (paymentType.isCardSelected &&
+        _cachedCardToken != null &&
+        _cachedSessionData != null) {
+      ConsoleLogger.debug('Using pre-fetched session data');
+      final result = SessionResult(
+        token: _cachedCardToken!,
+        sessionData: _cachedSessionData!,
+      );
+      // Clear cache to prevent leaks across multiple payments
+      _cachedCardToken = null;
+      _cachedSessionData = null;
+      return result;
+    }
 
     // If the card was already tokenized before submit() was called,
     // use it directly — getSessionData only triggers session data, not tokenization.

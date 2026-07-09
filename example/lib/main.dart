@@ -67,27 +67,8 @@ class PaymentScreen extends StatefulWidget {
 
 class _PaymentScreenState extends State<PaymentScreen> {
   var currentPaymentType = CurrentPaymentType.card;
-  bool _isReady = false;
-  bool _isValid = false;
-  bool _isBottomSheetOpen = false;
-
-  // GlobalKey keeps the native view alive when moved between bottom sheet and main screen
-  final GlobalKey _cardViewKey = GlobalKey();
 
   final PaymentBridge _paymentBridge = PaymentBridge();
-
-  Widget _buildCardView() {
-    return CheckoutCardView(
-      key: _cardViewKey,
-      paymentConfig: _paymentConfig,
-      onReady: () {
-        if (mounted) setState(() => _isReady = true);
-      },
-      onValidInput: (valid) {
-        if (mounted) setState(() => _isValid = valid);
-      },
-    );
-  }
 
   @override
   void initState() {
@@ -150,19 +131,11 @@ class _PaymentScreenState extends State<PaymentScreen> {
 
           ElevatedButton(
             onPressed: () async {
-              setState(() => _isBottomSheetOpen = true);
-
-              // Pass the card view into the bottom sheet
+              // Standard bottom sheet without any reparenting hacks!
               await kShowAddNewCardBottomSheet(
                 context,
-                cardViewWidget: _buildCardView(),
+                paymentConfig: _paymentConfig,
               );
-
-              // When closed, reparent back to Offstage in the main screen
-              await Future.delayed(const Duration(milliseconds: 200));
-              if (mounted) {
-                setState(() => _isBottomSheetOpen = false);
-              }
             },
             style: ElevatedButton.styleFrom(
               backgroundColor: Colors.blue,
@@ -172,35 +145,27 @@ class _PaymentScreenState extends State<PaymentScreen> {
             child: Text('Add New Card'),
           ),
 
-          // Render the card view offstage to keep it alive when bottom sheet is closed
-          Offstage(
-            offstage: true,
-            child: _isBottomSheetOpen ? const SizedBox.shrink() : _buildCardView(),
-          ),
+          SizedBox(height: 200),
 
-          SizedBox(height: 32),
-
-          // 2. Pay Now button triggers submit() and gets the session data
+          // Pay Now button triggers submit() and gets the cached session data
           ElevatedButton(
-            onPressed: (!_isReady || !_isValid)
-                ? null
-                : () async {
-                    try {
-                      // Because the view is still alive offstage, we can call submit()
-                      final bridge = PaymentBridge();
-                      final result = await bridge.submit(currentPaymentType);
+            onPressed: () async {
+              try {
+                // Because PaymentBridge caches the session data during tokenization,
+                // calling submit() here returns the cached session data instantly
+                // even though the native card view is already destroyed!
+                final result = await _paymentBridge.submit(currentPaymentType);
 
-                      ConsoleLogger.success(
-                        "✅ SessionData returned: ${result.sessionData}",
-                      );
+                ConsoleLogger.success(
+                  "✅ SessionData returned: ${result.sessionData}",
+                );
 
-                      // You now have the session data object here!
-                      // return result.sessionData;
-
-                    } catch (e) {
-                      ConsoleLogger.error("Failed to get session data: $e");
-                    }
-                  },
+                // You now have the session data object here!
+                // return result.sessionData;
+              } catch (e) {
+                ConsoleLogger.error("Failed to get session data: $e");
+              }
+            },
             style: ElevatedButton.styleFrom(
               fixedSize: Size(double.infinity, 50),
               shape: RoundedRectangleBorder(
