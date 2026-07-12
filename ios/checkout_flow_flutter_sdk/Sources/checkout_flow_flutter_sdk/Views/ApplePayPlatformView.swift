@@ -276,17 +276,32 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
             )
             return
         }
-        updatePaymentAmount(amount: amount)
+
+        guard
+            let currencyCode = applePayConfig?["currencyCode"] as? String,
+            !currencyCode.isEmpty
+        else {
+            sendError(
+                code: ApplePayErrorCode.invalidConfig,
+                message: "Missing currencyCode in applePayConfig"
+            )
+            return
+        }
+
+        updatePaymentAmount(amount: amount, currency: currencyCode.uppercased())
     }
 
     // Calling .update(with:) function updates the payment amount displayed on the Apple Pay sheet.
     // The Checkout SDK handles session updates and payment processing automatically.
     /// Updates the payment amount in the SDK to reflect on the Apple Pay sheet.
-    /// - Parameter amount: The amount in cents.
+    /// - Parameters:
+    ///   - amount: The minor-unit amount from Flutter.
+    ///   - currency: The ISO 4217 currency code from Flutter.
     @MainActor
-    private func updatePaymentAmount(amount: Int) {
+    private func updatePaymentAmount(amount: Int, currency: String) {
         do {
-            let updateDetails = CheckoutSDK.UpdateDetails(amount: amount)
+            var updateDetails = CheckoutSDK.UpdateDetails(amount: amount)
+            updateDetails.currency = currency
             try checkoutComponents?.update(with: updateDetails)
         } catch {
             sendError(

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-dev16] - 2026-07-12
+
+### Fixed
+- Apple Pay now applies the currency code received from Flutter when updating the payment amount.
+
 ## [0.1.0] - 2025-11-26
 
 ### Added
