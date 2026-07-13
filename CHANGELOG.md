@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-dev17] - 2026-07-13
+
+### Fixed
+- Apple Pay amount updates no longer set `UpdateDetails.currency`, avoiding `0.00` totals for non-SAR currencies.
+- Apple Pay now reports ready only after the amount update succeeds.
+
 ## [1.0.0-dev16] - 2026-07-12
 
 ### Fixed

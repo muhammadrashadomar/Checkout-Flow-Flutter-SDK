@@ -266,8 +266,6 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
 
     @MainActor
     private func handleOnReady() {
-        sendApplePayReady()
-
         let applePayConfig = args["applePayConfig"] as? [String: Any]
         guard let amount = applePayConfig?["amount"] as? Int else {
             sendError(
@@ -288,7 +286,9 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
             return
         }
 
-        updatePaymentAmount(amount: amount, currency: currencyCode.uppercased())
+        if updatePaymentAmount(amount: amount, currency: currencyCode.uppercased()) {
+            sendApplePayReady()
+        }
     }
 
     // Calling .update(with:) function updates the payment amount displayed on the Apple Pay sheet.
@@ -298,16 +298,19 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
     ///   - amount: The minor-unit amount from Flutter.
     ///   - currency: The ISO 4217 currency code from Flutter.
     @MainActor
-    private func updatePaymentAmount(amount: Int, currency: String) {
+    @discardableResult
+    private func updatePaymentAmount(amount: Int, currency: String) -> Bool {
         do {
-            var updateDetails = CheckoutSDK.UpdateDetails(amount: amount)
-            updateDetails.currency = currency
+            print("[ApplePayPlatformView] Updating Apple Pay amount: \(amount) \(currency)")
+            let updateDetails = CheckoutSDK.UpdateDetails(amount: amount)
             try checkoutComponents?.update(with: updateDetails)
+            return true
         } catch {
             sendError(
                 code: ApplePayErrorCode.updateAmountFailed,
                 message: "Failed to update Apple Pay amount: \(error.localizedDescription)"
             )
+            return false
         }
     }
 
