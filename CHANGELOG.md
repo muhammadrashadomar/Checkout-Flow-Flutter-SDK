@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-dev19] - 2026-07-13
+
+### Changed
+- Updated Android Checkout Components SDK to `2.2.0`.
+
 ## [1.0.0-dev18] - 2026-07-13
 
 ### Fixed

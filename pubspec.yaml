@@ -1,6 +1,6 @@
 name: checkout_flow_flutter_sdk
 description: A Flutter plugin for integrating Checkout.com payment gateway with support for card tokenization and Google Pay.
-version: 1.0.0-dev18
+version: 1.0.0-dev19
 homepage: https://github.com/muhammadrashadomar/Checkout-Flow-Flutter-SDK
 
 environment:

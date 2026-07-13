@@ -3,7 +3,7 @@ version '1.0'
 
 buildscript {
     ext.kotlin_version = '2.1.0'
-    ext.checkout_version = '1.2.0'
+    ext.checkout_version = '2.2.0'
 
     repositories {
         google()
@@ -63,7 +63,7 @@ android {
 
 dependencies {
     // Checkout.com SDK
-    implementation "com.checkout:checkout-android-components:1.2.0"
+    implementation "com.checkout:checkout-android-components:2.2.0"
     
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.0"
     
