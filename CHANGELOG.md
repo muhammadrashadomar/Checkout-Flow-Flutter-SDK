@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-dev18] - 2026-07-13
+
+### Fixed
+- Apple Pay amount updates now pass the Flutter-provided currency to `UpdateDetails`.
+
 ## [1.0.0-dev17] - 2026-07-13
 
 ### Fixed

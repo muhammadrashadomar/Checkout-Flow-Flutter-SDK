@@ -302,7 +302,8 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
     private func updatePaymentAmount(amount: Int, currency: String) -> Bool {
         do {
             print("[ApplePayPlatformView] Updating Apple Pay amount: \(amount) \(currency)")
-            let updateDetails = CheckoutSDK.UpdateDetails(amount: amount)
+            var updateDetails = CheckoutSDK.UpdateDetails(amount: amount)
+            updateDetails.currency = currency
             try checkoutComponents?.update(with: updateDetails)
             return true
         } catch {
