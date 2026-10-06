@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-dev18.1] - 2026-10-06
+
+### Fixed
+- iOS Apple Pay button is now clipped to its platform-view frame, so it no longer draws a strip over Flutter UI that overlaps it (such as a toast).
+
 ## [1.0.0-dev18] - 2026-07-13
 
 ### Fixed

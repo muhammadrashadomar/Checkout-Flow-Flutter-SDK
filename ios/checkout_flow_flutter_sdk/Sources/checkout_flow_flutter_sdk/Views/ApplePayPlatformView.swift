@@ -210,6 +210,10 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
         hostingController.view.frame = containerView.bounds
         hostingController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
+        // Flutter only composites its own widgets above a platform view within
+        // the view's frame, so anything the SwiftUI button draws outside it
+        // shows on top of overlapping Flutter UI (e.g. a strip across a toast).
+        containerView.clipsToBounds = true
         containerView.addSubview(hostingController.view)
         self.hostingController = hostingController
     }
