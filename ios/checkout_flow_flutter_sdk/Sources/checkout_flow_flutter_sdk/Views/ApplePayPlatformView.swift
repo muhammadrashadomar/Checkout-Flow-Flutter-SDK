@@ -210,9 +210,17 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
         hostingController.view.frame = containerView.bounds
         hostingController.view.autoresizingMask = [.flexibleWidth, .flexibleHeight]
 
-        // Flutter only composites its own widgets above a platform view within
-        // the view's frame, so anything the SwiftUI button draws outside it
-        // shows on top of overlapping Flutter UI (e.g. a strip across a toast).
+        // The button usually sits near the bottom of the screen, where the
+        // hosting view inherits part of the home-indicator safe area. SwiftUI
+        // then centres the button in the shorter safe region and draws it a few
+        // points above this view. Flutter only composites its own widgets above
+        // a platform view within the view's frame, so that overflow showed on
+        // top of overlapping Flutter UI (a strip across a toast). Ignore the
+        // safe area so the button fills the frame, and clip as a guard
+        // (iOS 15.0-16.3 has no `safeAreaRegions`, so there it is clipped).
+        if #available(iOS 16.4, *) {
+            hostingController.safeAreaRegions = []
+        }
         containerView.clipsToBounds = true
         containerView.addSubview(hostingController.view)
         self.hostingController = hostingController

@@ -1,9 +1,9 @@
 # Changelog
 
-## [1.0.0-dev18.1] - 2026-10-06
+## [1.0.0-dev18.2] - 2026-10-06
 
 ### Fixed
-- iOS Apple Pay button is now clipped to its platform-view frame, so it no longer draws a strip over Flutter UI that overlaps it (such as a toast).
+- iOS Apple Pay button no longer draws above its platform-view frame when it sits over the home-indicator safe area, which showed as a strip across Flutter UI overlapping it (such as a toast). The hosting controller now ignores safe-area insets (iOS 16.4+) and the container clips to its bounds.
 
 ## [1.0.0-dev18] - 2026-07-13
 
