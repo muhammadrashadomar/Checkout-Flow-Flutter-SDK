@@ -1,4 +1,5 @@
 import CheckoutComponentsSDK
+import PassKit
 import SwiftUI
 import UIKit
 
@@ -37,6 +38,41 @@ func checkoutDesignTokens(from params: [String: Any]) -> CheckoutSDK.DesignToken
         borderButtonRadius: .init(radius: borderRadius),
         borderFormRadius: .init(radius: borderRadius)
     )
+}
+
+/// The Apple Pay button the plugin draws itself, because the Checkout SDK's
+/// `ApplePayConfiguration` can't set the button's label, style or corners.
+struct ApplePayButtonAppearance {
+    let type: PKPaymentButtonType
+    let style: PKPaymentButtonStyle
+    let cornerRadius: CGFloat?
+}
+
+/// Reads the optional `buttonType` / `buttonStyle` / `buttonCornerRadius` keys
+/// of `applePayConfig`. Nil (no key, or an unknown type) keeps the Checkout
+/// SDK's own button.
+func applePayButtonAppearance(from applePayConfig: [String: Any]?) -> ApplePayButtonAppearance? {
+    let type: PKPaymentButtonType
+    switch applePayConfig?["buttonType"] as? String {
+    case "plain": type = .plain
+    case "buy": type = .buy
+    case "book": type = .book
+    case "checkout": type = .checkout
+    case "inStore": type = .inStore
+    case "subscribe": type = .subscribe
+    default: return nil
+    }
+
+    let style: PKPaymentButtonStyle
+    switch applePayConfig?["buttonStyle"] as? String {
+    case "white": style = .white
+    case "whiteOutline": style = .whiteOutline
+    default: style = .black
+    }
+
+    let cornerRadius = (applePayConfig?["buttonCornerRadius"] as? NSNumber)
+        .map { CGFloat($0.doubleValue) }
+    return ApplePayButtonAppearance(type: type, style: style, cornerRadius: cornerRadius)
 }
 
 func checkoutCardConfiguration(from params: [String: Any]) -> CheckoutSDK.CardConfigurations {

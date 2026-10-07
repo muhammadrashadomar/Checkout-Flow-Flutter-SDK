@@ -215,6 +215,25 @@ class GooglePayConfig {
   }
 }
 
+/// The label on the Apple Pay button, mirroring `PKPaymentButtonType`.
+///
+/// Prefixed so it doesn't clash with the `pay` package's `ApplePayButtonType`
+/// in apps that use both.
+enum CheckoutApplePayButtonType {
+  plain,
+  buy,
+  book,
+  checkout,
+  inStore,
+  subscribe,
+}
+
+/// The Apple Pay button variant, mirroring `PKPaymentButtonStyle`.
+///
+/// Apple's guidelines require the variant that contrasts with the background:
+/// [black] on light backgrounds, [white] or [whiteOutline] on dark ones.
+enum CheckoutApplePayButtonStyle { black, white, whiteOutline }
+
 /// Apple Pay Configuration (iOS)
 class ApplePayConfig {
   /// Apple Pay merchant identifier (e.g., 'merchant.com.company.app')
@@ -225,12 +244,29 @@ class ApplePayConfig {
   final String currencyCode;
   final double amount;
 
+  /// When set, the plugin draws Apple's own `PKPaymentButton` with this label
+  /// instead of the Checkout SDK's button, whose label, style and corners
+  /// can't be configured, and starts the payment when it is tapped.
+  /// When null, the Checkout SDK's button is shown as before.
+  final CheckoutApplePayButtonType? buttonType;
+
+  /// Style of the button drawn for [buttonType]. Ignored without it.
+  final CheckoutApplePayButtonStyle buttonStyle;
+
+  /// Corner radius of the button drawn for [buttonType], in points; half the
+  /// view's height gives a pill. Null keeps Apple's default. Ignored without
+  /// [buttonType].
+  final double? buttonCornerRadius;
+
   const ApplePayConfig({
     required this.merchantIdentifier,
     required this.merchantName,
     required this.countryCode,
     required this.currencyCode,
     required this.amount,
+    this.buttonType,
+    this.buttonStyle = CheckoutApplePayButtonStyle.black,
+    this.buttonCornerRadius,
   });
 
   Map<String, dynamic> toMap() {
@@ -240,6 +276,12 @@ class ApplePayConfig {
       'countryCode': countryCode,
       'currencyCode': currencyCode,
       'amount': AmountUtils.toRawAmount(amount, currencyCode),
+      if (buttonType != null) ...{
+        'buttonType': buttonType!.name,
+        'buttonStyle': buttonStyle.name,
+        if (buttonCornerRadius != null)
+          'buttonCornerRadius': buttonCornerRadius,
+      },
     };
   }
 }

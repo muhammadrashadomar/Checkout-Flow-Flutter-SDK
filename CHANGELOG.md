@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-dev18.3] - 2026-10-07
+
+### Added
+- `ApplePayConfig.buttonType`, `buttonStyle` and `buttonCornerRadius` (iOS). When `buttonType` is set, the plugin draws Apple's own `PKPaymentButton` (for example "Book with Apple Pay", black or white, pill-shaped) instead of the Checkout SDK's button, whose label, style and corners can't be configured, and starts the Apple Pay flow when it is tapped. Without `buttonType` nothing changes.
+
 ## [1.0.0-dev18.2] - 2026-10-06
 
 ### Fixed

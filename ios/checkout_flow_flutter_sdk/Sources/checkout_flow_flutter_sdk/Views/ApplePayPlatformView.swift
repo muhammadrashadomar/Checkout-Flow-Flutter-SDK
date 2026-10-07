@@ -1,5 +1,6 @@
 import CheckoutComponentsSDK
 import Flutter
+import PassKit
 import SwiftUI
 import UIKit
 
@@ -103,6 +104,7 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
             )
             return
         }
+        let buttonAppearance = applePayButtonAppearance(from: applePayConfig)
 
         let paymentSession = CheckoutPaymentSession(
             id: sessionId,
@@ -176,7 +178,7 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
                 let component = try checkout.create(
                     .applePay(
                         merchantIdentifier: merchantIdentifier,
-                        showPayButton: true,
+                        showPayButton: buttonAppearance == nil,
                         applePayConfiguration: .init()
                     )
                 )
@@ -193,6 +195,9 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
                 applePayComponent = component
 
                 embedSwiftUIView(component.render())
+                if let buttonAppearance {
+                    embedPaymentButton(buttonAppearance)
+                }
             } catch let error as CheckoutSDK.Error {
                 sendCheckoutError(error, defaultCode: ApplePayErrorCode.initializationFailed)
             } catch {
@@ -224,6 +229,29 @@ final class ApplePayPlatformView: NSObject, FlutterPlatformView {
         containerView.clipsToBounds = true
         containerView.addSubview(hostingController.view)
         self.hostingController = hostingController
+    }
+
+    /// Draws Apple's own button over the component (created with
+    /// `showPayButton: false`, so it draws no button) and starts the
+    /// component's Apple Pay flow on tap, the same `submit()` that
+    /// `tokenizeApplePay` uses.
+    @MainActor
+    private func embedPaymentButton(_ appearance: ApplePayButtonAppearance) {
+        let button = PKPaymentButton(
+            paymentButtonType: appearance.type,
+            paymentButtonStyle: appearance.style
+        )
+        button.frame = containerView.bounds
+        button.autoresizingMask = [.flexibleWidth, .flexibleHeight]
+        if let cornerRadius = appearance.cornerRadius {
+            button.cornerRadius = cornerRadius
+        }
+        button.addTarget(self, action: #selector(paymentButtonTapped), for: .touchUpInside)
+        containerView.addSubview(button)
+    }
+
+    @objc private func paymentButtonTapped() {
+        applePayComponent?.submit()
     }
 
     private func sendTokenizationResult(_ tokenDetails: CheckoutSDK.TokenDetails) {
