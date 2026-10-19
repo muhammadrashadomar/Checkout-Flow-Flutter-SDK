@@ -198,6 +198,12 @@ class GooglePayPlatformView(
                             if (error.code == CheckoutErrorCode.PAYMENT_CANCELLED) {
                                 Log.d(TAG, "Google Pay sheet cancelled/dismissed by user")
                                 sendOnDismissed()
+                            } else if (error.code ==
+                                            CheckoutErrorCode.MERCHANT_HANDLE_SUBMIT_CALLBACK_FAILED
+                            ) {
+                                // handleSubmit returns Failure on purpose (the app's backend
+                                // completes the payment); the SDK reports that here.
+                                Log.d(TAG, "handleSubmit handed off to the app")
                             } else {
                                 Log.e(TAG, "Payment error: ${error.message}")
                                 sendError(ErrorCode.PAYMENT_ERROR, error.message ?: "Payment failed")

@@ -19,7 +19,7 @@ class CardViewFactory(
 ) : PlatformViewFactory(StandardMessageCodec.INSTANCE) {
 
     override fun create(context: Context, viewId: Int, args: Any?): PlatformView {
-        val view = CardPlatformView(activity, args, messenger)
+        val view = CardPlatformView(activity, viewId, args, messenger)
         onViewCreated?.invoke(view)
         return view
     }

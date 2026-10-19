@@ -35,14 +35,8 @@ void main() {
     });
 
     test('drops the phone when either part is missing', () {
-      expect(
-        const RememberMeConfig(phoneCountryCode: '966').toMap(),
-        isEmpty,
-      );
-      expect(
-        const RememberMeConfig(phoneNumber: '501234567').toMap(),
-        isEmpty,
-      );
+      expect(const RememberMeConfig(phoneCountryCode: '966').toMap(), isEmpty);
+      expect(const RememberMeConfig(phoneNumber: '501234567').toMap(), isEmpty);
     });
 
     test('drops a blank email', () {

@@ -21,9 +21,19 @@ class PaymentBridge {
     initialize();
   }
 
+  /// How long a card call waits for the native callback it depends on
+  /// (`cardTokenized`, `sessionDataReady`) before failing with `TIMEOUT`.
+  /// The native calls return at once and answer through those callbacks,
+  /// which can be missing, so an open wait would spin the pay button forever.
+  static const Duration nativeCallbackTimeout = Duration(seconds: 30);
+
   bool _isInitialized = false;
   CardTokenResult? _cachedCardToken;
   String? _cachedSessionData;
+
+  /// Height listeners per card platform view id; see [setCardHeightListener].
+  final Map<int, void Function(double)> _cardHeightListeners = {};
+  final Map<int, double> _lastCardHeights = {};
 
   // Callbacks for payment events
   Function(CardTokenResult)? onCardTokenized;
@@ -217,12 +227,95 @@ class PaymentBridge {
     try {
       final args = Map<String, dynamic>.from(arguments as Map);
       final height = (args['height'] as num?)?.toDouble() ?? 0.0;
+      final viewId = (args['viewId'] as num?)?.toInt();
 
-      ConsoleLogger.debug('Native view height changed: $height');
+      ConsoleLogger.debug('Native view $viewId height changed: $height');
+      if (viewId != null) {
+        _lastCardHeights[viewId] = height;
+        _cardHeightListeners[viewId]?.call(height);
+      }
       onHeightChanged?.call(height);
     } catch (e) {
       ConsoleLogger.error('Error processing height change: $e');
     }
+  }
+
+  /// Sends the card form's natural height for platform view [viewId] to
+  /// [listener], starting with the last height already reported. Height
+  /// reports carry the view id, so two card views can't resize each other.
+  /// Pass `null` when the view is disposed.
+  void setCardHeightListener(int viewId, void Function(double)? listener) {
+    if (listener == null) {
+      _cardHeightListeners.remove(viewId);
+      _lastCardHeights.remove(viewId);
+      return;
+    }
+    _cardHeightListeners[viewId] = listener;
+    final lastHeight = _lastCardHeights[viewId];
+    if (lastHeight != null) listener(lastHeight);
+  }
+
+  /// Calls native [method] and waits for [completer], which a native callback
+  /// completes. Fails with a [PlatformException] when native reports a
+  /// `paymentError` first, or when the call and the callback together take
+  /// longer than [timeout]. Callers already handle [PlatformException], so
+  /// these failures take the same path. A `null` [timeout] waits as long as
+  /// the user needs (a wallet sheet).
+  ///
+  /// Android answers `getSessionData` only after Checkout's `submit()`
+  /// returns, so callbacks can arrive before [MethodChannel.invokeMethod]
+  /// does: the error hook goes in before the call, and the callback future is
+  /// listened to straight away so an early error isn't reported as uncaught.
+  Future<T> _invokeAndAwaitCallback<T>(
+    String method,
+    Completer<T> completer,
+    String what, {
+    Duration? timeout = nativeCallbackTimeout,
+  }) async {
+    completer.future.ignore();
+    final previousErrorCallback = onPaymentError;
+    onPaymentError = (error) {
+      if (!completer.isCompleted) {
+        completer.completeError(
+          _NativePaymentError(
+            code: error.errorCode,
+            message: error.errorMessage,
+            details: error.details,
+          ),
+        );
+      }
+      previousErrorCallback?.call(error);
+    };
+
+    Future<T> invokeThenAwait() async {
+      await _channel.invokeMethod(method);
+      return completer.future;
+    }
+
+    try {
+      if (timeout == null) return await invokeThenAwait();
+      return await invokeThenAwait().timeout(
+        timeout,
+        onTimeout: () => throw PlatformException(
+          code: 'TIMEOUT',
+          message: 'No $what from the card form within ${timeout.inSeconds}s',
+        ),
+      );
+    } finally {
+      onPaymentError = previousErrorCallback;
+    }
+  }
+
+  /// Reports a [PlatformException] from a card call to [onPaymentError],
+  /// unless native already reported it there itself.
+  void _reportCallFailure(PlatformException error, String fallbackMessage) {
+    if (error is _NativePaymentError) return;
+    onPaymentError?.call(
+      PaymentErrorResult(
+        errorCode: error.code,
+        errorMessage: error.message ?? fallbackMessage,
+      ),
+    );
   }
 
   void _handleOnSubmit() {
@@ -269,6 +362,10 @@ class PaymentBridge {
   }
 
   /// Tokenize the card (trigger from Flutter button)
+  ///
+  /// Needs a typed card: a Remember Me saved card has no client-side token,
+  /// so this fails (after [nativeCallbackTimeout] at worst). Pay a form with
+  /// Remember Me on through [submit].
   Future<CardTokenResult> tokenizeCard() async {
     initialize();
     final completer = Completer<CardTokenResult>();
@@ -293,27 +390,30 @@ class PaymentBridge {
 
     try {
       ConsoleLogger.payment('Requesting card tokenization...');
-      await _channel.invokeMethod('tokenizeCard');
-      final tokenResult = await completer.future;
+      final tokenResult = await _invokeAndAwaitCallback(
+        'tokenizeCard',
+        completer,
+        'card token',
+      );
 
       // Pre-fetch and cache the session data natively while the card view is still alive
       try {
         ConsoleLogger.payment('Pre-fetching session data internally...');
-        await _channel.invokeMethod('getSessionData');
-        _cachedSessionData = await sessionCompleter.future;
+        _cachedSessionData = await _invokeAndAwaitCallback(
+          'getSessionData',
+          sessionCompleter,
+          'session data',
+        );
       } catch (e) {
-        ConsoleLogger.warning('Failed to pre-fetch session data internally: $e');
+        ConsoleLogger.warning(
+          'Failed to pre-fetch session data internally: $e',
+        );
       }
 
       return tokenResult;
     } on PlatformException catch (e) {
       ConsoleLogger.error('Tokenize card failed: ${e.message}');
-      onPaymentError?.call(
-        PaymentErrorResult(
-          errorCode: e.code,
-          errorMessage: e.message ?? 'Tokenization failed',
-        ),
-      );
+      _reportCallFailure(e, 'Tokenization failed');
       rethrow;
     } finally {
       // Restore original callbacks
@@ -328,6 +428,8 @@ class PaymentBridge {
   /// Use this instead of calling [tokenizeCard] followed by [submit] separately,
   /// which will fail if the card view is dismissed (e.g. bottom sheet closed)
   /// between the two calls.
+  ///
+  /// Like [tokenizeCard], needs a typed card, not a Remember Me saved card.
   Future<SessionResult> tokenizeAndGetSessionData() async {
     initialize();
 
@@ -354,30 +456,30 @@ class PaymentBridge {
     try {
       ConsoleLogger.payment('Requesting card tokenization...');
       // Step 1: tokenize → fires cardTokenized callback
-      await _channel.invokeMethod('tokenizeCard');
-      final tokenResult = await tokenCompleter.future;
+      final tokenResult = await _invokeAndAwaitCallback(
+        'tokenizeCard',
+        tokenCompleter,
+        'card token',
+      );
 
       ConsoleLogger.payment('Requesting session data...');
       // Step 2: submit → fires sessionDataReady callback (card view must be alive)
-      await _channel.invokeMethod('getSessionData');
-      final sessionData = await sessionCompleter.future;
+      final sessionData = await _invokeAndAwaitCallback(
+        'getSessionData',
+        sessionCompleter,
+        'session data',
+      );
 
       return SessionResult(token: tokenResult, sessionData: sessionData);
     } on PlatformException catch (e) {
       ConsoleLogger.error('Tokenize + session data failed: ${e.message}');
-      onPaymentError?.call(
-        PaymentErrorResult(
-          errorCode: e.code,
-          errorMessage: e.message ?? 'Payment processing failed',
-        ),
-      );
+      _reportCallFailure(e, 'Payment processing failed');
       rethrow;
     } finally {
       onCardTokenized = previousTokenCallback;
       onSessionData = previousSessionCallback;
     }
   }
-
 
   void _handleCardBinChanged(dynamic arguments) {
     if (arguments == null) {
@@ -435,19 +537,15 @@ class PaymentBridge {
 
     try {
       ConsoleLogger.payment('Requesting saved card tokenization...');
-      await _channel.invokeMethod(
+      // Same method, different component
+      return await _invokeAndAwaitCallback(
         'tokenizeCard',
-      ); // Same method, different component
-
-      return await completer.future;
+        completer,
+        'card token',
+      );
     } on PlatformException catch (e) {
       ConsoleLogger.error('Tokenize saved card failed: ${e.message}');
-      onPaymentError?.call(
-        PaymentErrorResult(
-          errorCode: e.code,
-          errorMessage: e.message ?? 'Tokenization failed',
-        ),
-      );
+      _reportCallFailure(e, 'Tokenization failed');
       rethrow;
     } finally {
       onCardTokenized = previousTokenCallback;
@@ -474,10 +572,6 @@ class PaymentBridge {
       return result;
     }
 
-    // If the card was already tokenized before submit() was called,
-    // use it directly — getSessionData only triggers session data, not tokenization.
-    final existingToken = _cachedCardToken;
-
     final sessionCompleter = Completer<String>();
     final previousSessionCallback = onSessionData;
 
@@ -488,65 +582,48 @@ class PaymentBridge {
       if (previousSessionCallback != null) previousSessionCallback(data);
     };
 
-    // For a fresh card flow (no cached token), we also need to capture
-    // the tokenization result that native will fire after submit().
-    Completer<CardTokenResult>? tokenCompleter;
-    Function(CardTokenResult)? previousTokenCallback;
+    // Checkout sends cardTokenized before sessionDataReady when a typed card
+    // is submitted. A Remember Me saved card has no client-side token, so
+    // the session data arrives alone; waiting for a token there would hang.
+    // Only this submission's token counts: `_cachedCardToken` may belong to
+    // a card entered earlier.
+    CardTokenResult? submittedToken;
+    final previousTokenCallback = onCardTokenized;
+    onCardTokenized = (result) {
+      submittedToken = result;
+      previousTokenCallback?.call(result);
+    };
 
-    if (existingToken == null && paymentType.isCardSelected) {
-      tokenCompleter = Completer<CardTokenResult>();
-      previousTokenCallback = onCardTokenized;
-      onCardTokenized = (result) {
-        if (!tokenCompleter!.isCompleted) {
-          tokenCompleter.complete(result);
-        }
-        if (previousTokenCallback != null) previousTokenCallback(result);
-      };
+    final String sessionMethod;
+    if (paymentType.isGooglePaySelected) {
+      ConsoleLogger.debug('Calling Google Pay session data');
+      sessionMethod = 'getGooglePaySessionData';
+    } else if (paymentType.isCardSelected) {
+      ConsoleLogger.debug('Calling card session data');
+      sessionMethod = 'getSessionData';
+    } else {
+      ConsoleLogger.warning('Payment type unknown, defaulting to card');
+      sessionMethod = 'getSessionData';
     }
 
     try {
-      if (paymentType.isGooglePaySelected) {
-        ConsoleLogger.debug('Calling Google Pay session data');
-        await _channel.invokeMethod('getGooglePaySessionData');
-      } else if (paymentType.isCardSelected) {
-        ConsoleLogger.debug('Calling card session data');
-        await _channel.invokeMethod('getSessionData');
-      } else {
-        ConsoleLogger.warning('Payment type unknown, defaulting to card');
-        await _channel.invokeMethod('getSessionData');
-      }
+      final sessionData = await _invokeAndAwaitCallback(
+        sessionMethod,
+        sessionCompleter,
+        'session data',
+        // Google Pay answers when the user finishes its sheet, however long
+        // that takes.
+        timeout: paymentType.isGooglePaySelected ? null : nativeCallbackTimeout,
+      );
 
-      // Wait for session data from native.
-      final sessionData = await sessionCompleter.future;
-
-      // Resolve the token — either cached or freshly received.
-      final CardTokenResult tokenResult;
-      if (existingToken != null) {
-        tokenResult = existingToken;
-      } else if (tokenCompleter != null) {
-        tokenResult = await tokenCompleter.future;
-      } else {
-        throw PlatformException(
-          code: 'NO_TOKEN',
-          message: 'No card token available',
-        );
-      }
-
-      return SessionResult(token: tokenResult, sessionData: sessionData);
+      return SessionResult(token: submittedToken, sessionData: sessionData);
     } on PlatformException catch (e) {
       ConsoleLogger.error('Submit failed: ${e.message}');
-      onPaymentError?.call(
-        PaymentErrorResult(
-          errorCode: e.code,
-          errorMessage: e.message ?? 'Submit failed',
-        ),
-      );
+      _reportCallFailure(e, 'Submit failed');
       rethrow;
     } finally {
       onSessionData = previousSessionCallback;
-      if (tokenCompleter != null) {
-        onCardTokenized = previousTokenCallback;
-      }
+      onCardTokenized = previousTokenCallback;
     }
   }
 
@@ -823,4 +900,10 @@ class PaymentBridge {
   void dispose() {
     clearCallbacks();
   }
+}
+
+/// A `paymentError` native sent while a card call waited. Native already
+/// delivered it to [PaymentBridge.onPaymentError], so it isn't reported again.
+class _NativePaymentError extends PlatformException {
+  _NativePaymentError({required super.code, super.message, super.details});
 }

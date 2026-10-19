@@ -4,8 +4,14 @@ import SwiftUI
 import UIKit
 
 final class CardPlatformView: NSObject, FlutterPlatformView {
+    /// Height reports are coalesced to one per this interval while the form
+    /// animates (Remember Me expanding, for example); the last height always
+    /// goes out.
+    private static let heightReportInterval: TimeInterval = 0.05
+
     private let channel: FlutterMethodChannel
     private let args: [String: Any]
+    private let viewId: Int64
     private let containerView: UIView
 
     private var hostingController: UIHostingController<AnyView>?
@@ -14,6 +20,8 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     private var hasSentReady = false
     private var lastValidationState: Bool?
     private var lastBin: String?
+    private var lastReportedHeight: CGFloat = 0
+    private var pendingHeight: CGFloat?
 
     init(
         frame: CGRect,
@@ -22,6 +30,7 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
         messenger: FlutterBinaryMessenger
     ) {
         self.args = args as? [String: Any] ?? [:]
+        self.viewId = viewId
         self.channel = FlutterMethodChannel(
             name: CheckoutFlutterBridgeConstants.channelName,
             binaryMessenger: messenger
@@ -139,6 +148,10 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
                 self?.sendPaymentSuccess(paymentId)
             },
             onError: { [weak self] error in
+                // handleSubmit returns .failure on purpose (the app's backend
+                // completes the payment), and the SDK reports that as an error
+                // right after the session data. It isn't a failure.
+                if error.errorCode == .merchantHandleSubmitCallbackFailed { return }
                 self?.sendCheckoutError(error, defaultCode: "CHECKOUT_ERROR")
             }
         )
@@ -188,13 +201,25 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
 
     @MainActor
     private func embedSwiftUIView(_ view: AnyView) {
-        let hostingController = UIHostingController(rootView: view)
+        let measuredView = MeasuredCardView(content: view) { [weak self] height in
+            DispatchQueue.main.async { self?.scheduleHeightReport(height) }
+        }
+        let hostingController = UIHostingController(rootView: AnyView(measuredView))
         hostingController.view.backgroundColor = .clear
+        // Flutter owns this view's frame and the keyboard handling, so safe-area
+        // and keyboard insets would only push the fields down or up inside it.
+        // (iOS 15.0-16.3 has no `safeAreaRegions`.)
+        if #available(iOS 16.4, *) {
+            hostingController.safeAreaRegions = []
+        }
         hostingController.view.translatesAutoresizingMaskIntoConstraints = false
 
-        // Important: Improve layout behavior
-        hostingController.view.setContentHuggingPriority(.required, for: .vertical)
-        hostingController.view.setContentCompressionResistancePriority(.required, for: .vertical)
+        // Flutter sets the container's height and MeasuredCardView reports the
+        // natural one, so the hosting view just fills the container. Required
+        // hugging/compression would fight the edge pins whenever the two
+        // heights differ (until Flutter applies the reported height).
+        hostingController.view.setContentHuggingPriority(.defaultLow, for: .vertical)
+        hostingController.view.setContentCompressionResistancePriority(.defaultLow, for: .vertical)
 
         // Container setup
         containerView.clipsToBounds = true
@@ -210,6 +235,31 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
         ])
 
         containerView.layoutIfNeeded()
+    }
+
+    // MARK: - Height
+
+    private func scheduleHeightReport(_ height: CGFloat) {
+        let isScheduled = pendingHeight != nil
+        pendingHeight = height
+        guard !isScheduled else { return }
+
+        DispatchQueue.main.asyncAfter(deadline: .now() + Self.heightReportInterval) {
+            [weak self] in
+            guard let self, let height = self.pendingHeight else { return }
+            self.pendingHeight = nil
+            self.sendHeight(height)
+        }
+    }
+
+    private func sendHeight(_ height: CGFloat) {
+        let roundedHeight = height.rounded(.up)
+        guard roundedHeight > 0, abs(roundedHeight - lastReportedHeight) >= 1 else { return }
+        lastReportedHeight = roundedHeight
+        invokeMethod(
+            "heightChanged",
+            arguments: ["height": Double(roundedHeight), "viewId": viewId]
+        )
     }
 
     // MARK: - Flutter channel senders
@@ -269,5 +319,37 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
                 self?.channel.invokeMethod(method, arguments: arguments)
             }
         }
+    }
+}
+
+/// Lays the Checkout card component out at its natural height, pinned to the
+/// top of the platform view, and reports that height as it changes. Without
+/// it the component fills Flutter's frame and centres its fields in it.
+///
+/// Event-driven: SwiftUI re-runs the preference only on layout changes, so
+/// nothing polls. (The earlier per-frame CADisplayLink check was removed for
+/// that cost, and it also kept the view alive.)
+private struct MeasuredCardView: View {
+    let content: AnyView
+    let onHeightChange: (CGFloat) -> Void
+
+    var body: some View {
+        content
+            .fixedSize(horizontal: false, vertical: true)
+            .background(
+                GeometryReader { proxy in
+                    Color.clear.preference(key: CardContentHeightKey.self, value: proxy.size.height)
+                }
+            )
+            .onPreferenceChange(CardContentHeightKey.self, perform: onHeightChange)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+    }
+}
+
+private struct CardContentHeightKey: PreferenceKey {
+    static let defaultValue: CGFloat = 0
+
+    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
+        value = max(value, nextValue())
     }
 }

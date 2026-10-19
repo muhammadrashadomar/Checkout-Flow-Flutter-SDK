@@ -206,11 +206,7 @@ class RememberMeConfig {
   /// National number without the dial code.
   final String? phoneNumber;
 
-  const RememberMeConfig({
-    this.email,
-    this.phoneCountryCode,
-    this.phoneNumber,
-  });
+  const RememberMeConfig({this.email, this.phoneCountryCode, this.phoneNumber});
 
   Map<String, dynamic> toMap() {
     final email = this.email?.trim() ?? '';

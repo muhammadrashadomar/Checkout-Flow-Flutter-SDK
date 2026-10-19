@@ -4,6 +4,12 @@ import android.app.Activity
 import android.os.Handler
 import android.os.Looper
 import android.util.Log
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.ComposeView
 import com.checkout.components.core.CheckoutComponentsFactory
 import com.checkout.components.interfaces.Environment
@@ -16,6 +22,7 @@ import com.checkout.components.interfaces.component.ComponentOption
 import com.checkout.components.interfaces.component.PaymentButtonAction
 import com.checkout.components.interfaces.component.RememberMeConfiguration
 import com.checkout.components.interfaces.error.CheckoutError
+import com.checkout.components.interfaces.error.CheckoutErrorCode
 import com.checkout.components.interfaces.model.ApiCallResult
 import com.checkout.components.interfaces.model.CallbackResult
 import com.checkout.components.interfaces.model.CardMetadata
@@ -45,8 +52,12 @@ import kotlinx.coroutines.*
  * - Exposes methods via MainActivity method channel
  * - Sends results back to Flutter via method channel callbacks
  */
-class CardPlatformView(private val activity: Activity, args: Any?, messenger: BinaryMessenger) :
-        PlatformView {
+class CardPlatformView(
+        private val activity: Activity,
+        private val viewId: Int,
+        args: Any?,
+        messenger: BinaryMessenger
+) : PlatformView {
 
         private val container = android.widget.FrameLayout(activity)
         private val channel = MethodChannel(messenger, CHANNEL_NAME)
@@ -57,9 +68,19 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
         @Volatile private var isInitialized = false
         @Volatile private var isCardValid = false
 
+        // Main thread only (Compose layout and the main-dispatcher scope).
+        private var lastReportedHeightDp = 0
+        private var pendingHeightPx: Int? = null
+
         companion object {
                 private const val TAG = "CardPlatformView"
                 private const val CHANNEL_NAME = "checkout_bridge"
+
+                /**
+                 * Height reports are coalesced to one per this interval while the form animates
+                 * (Remember Me expanding, for example); the last height always goes out.
+                 */
+                private const val HEIGHT_REPORT_INTERVAL_MS = 50L
 
                 // Error Codes
                 private const val ERR_INIT = "INIT_ERROR"
@@ -166,7 +187,23 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
                                 if (cardComponent.isAvailable()) {
                                         withContext(Dispatchers.Main) {
                                                 val composeView = ComposeView(activity)
-                                                composeView.setContent { cardComponent.Render() }
+                                                composeView.setContent {
+                                                        // Natural height, pinned to the top, reported to
+                                                        // Flutter so the platform view can match it.
+                                                        Box(
+                                                                modifier =
+                                                                        Modifier.fillMaxWidth()
+                                                                                .wrapContentHeight(
+                                                                                        align = Alignment.Top,
+                                                                                        unbounded = true
+                                                                                )
+                                                                                .onSizeChanged { size ->
+                                                                                        scheduleHeightReport(
+                                                                                                size.height
+                                                                                        )
+                                                                                }
+                                                        ) { cardComponent.Render() }
+                                                }
                                                 container.addView(composeView)
                                                 isInitialized = true
                                                 Log.d(
@@ -227,9 +264,46 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
                                 CallbackResult.Accepted
                         },
                         onError = { _, checkoutError ->
-                                Log.e(TAG, "[Flow-Card] Error: ${checkoutError.message}")
-                                sendError(checkoutError.code.toString(), checkoutError.message)
+                                // handleSubmit returns Failure on purpose (the app's backend
+                                // completes the payment), and the SDK reports that as an error
+                                // right after the session data. It isn't a failure.
+                                if (checkoutError.code ==
+                                                CheckoutErrorCode.MERCHANT_HANDLE_SUBMIT_CALLBACK_FAILED
+                                ) {
+                                        Log.d(TAG, "[Flow-Card] handleSubmit handed off to the app")
+                                } else {
+                                        Log.e(TAG, "[Flow-Card] Error: ${checkoutError.message}")
+                                        sendError(
+                                                checkoutError.code.toString(),
+                                                checkoutError.message
+                                        )
+                                }
                         },
+                )
+        }
+
+        private fun scheduleHeightReport(heightPx: Int) {
+                val isScheduled = pendingHeightPx != null
+                pendingHeightPx = heightPx
+                if (isScheduled) return
+
+                scope.launch {
+                        delay(HEIGHT_REPORT_INTERVAL_MS)
+                        val latestHeightPx = pendingHeightPx ?: return@launch
+                        pendingHeightPx = null
+                        sendHeight(latestHeightPx)
+                }
+        }
+
+        /** Sends the height in dp, which matches Flutter's logical pixels. */
+        private fun sendHeight(heightPx: Int) {
+                val density = activity.resources.displayMetrics.density
+                val heightDp = kotlin.math.ceil(heightPx / density).toInt()
+                if (heightDp <= 0 || heightDp == lastReportedHeightDp) return
+                lastReportedHeightDp = heightDp
+                channel.invokeMethod(
+                        "heightChanged",
+                        mapOf("height" to heightDp.toDouble(), "viewId" to viewId)
                 )
         }
 

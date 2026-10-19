@@ -61,13 +61,15 @@ class CheckoutFlowCardView extends StatefulWidget {
   /// Callback when any payment error occurs
   final Function(PaymentErrorResult)? onError;
 
-  /// Callback when the card view height changes
+  /// Called with the card form's natural height whenever it changes (Remember
+  /// Me expanding, for example). The view already resizes itself to it.
   final Function(double)? onHeightChanged;
 
   /// Custom loader widget to show while card is initializing
   /// Defaults to CircularProgressIndicator if not provided
   final Widget? loader;
 
+  /// Height until the native form reports its own, which replaces it.
   final double height;
 
   const CheckoutFlowCardView({
@@ -91,9 +93,14 @@ class CheckoutFlowCardView extends StatefulWidget {
 }
 
 class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
+  /// Height changes smaller than this are ignored, so sub-pixel layout noise
+  /// doesn't resize the platform view.
+  static const double _minHeightChange = 1;
+
   bool _isReady = false;
   bool _isFailed = false;
   late double _height;
+  int? _platformViewId;
   final PaymentBridge _paymentBridge = PaymentBridge();
 
   @override
@@ -102,6 +109,36 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
     _height = widget.height;
     _paymentBridge.initialize();
     _setupCallbacks();
+  }
+
+  @override
+  void didUpdateWidget(CheckoutFlowCardView oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // A new config recreates the native view (see the key in build), which
+    // reports ready again. The bridge's callback slots are shared, so take
+    // them back in case another card view has set them since.
+    if (oldWidget.paymentConfig != widget.paymentConfig ||
+        oldWidget.cardConfig != widget.cardConfig) {
+      _isReady = false;
+      _isFailed = false;
+      _setupCallbacks();
+    }
+  }
+
+  void _onPlatformViewCreated(int viewId) {
+    final previousViewId = _platformViewId;
+    if (previousViewId != null) {
+      _paymentBridge.setCardHeightListener(previousViewId, null);
+    }
+    _platformViewId = viewId;
+    _paymentBridge.setCardHeightListener(viewId, _onNativeHeight);
+  }
+
+  void _onNativeHeight(double height) {
+    if (!mounted || height <= 0) return;
+    if ((height - _height).abs() < _minHeightChange) return;
+    setState(() => _height = height);
+    widget.onHeightChanged?.call(height);
   }
 
   void _setupCallbacks() {
@@ -171,23 +208,17 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
         }
       };
     }
-
-    // Height changes
-    _paymentBridge.onHeightChanged = (height) {
-      if (mounted) {
-        // setState(() {
-        //   _height = height;
-        // });
-
-        widget.onHeightChanged?.call(_height);
-      }
-    };
   }
 
   @override
   void dispose() {
     // Note: We don't clear callbacks here as PaymentBridge is a singleton
     // and may be used elsewhere. Callbacks will be cleared when needed.
+    // The height listener is this view's own, so it goes.
+    final platformViewId = _platformViewId;
+    if (platformViewId != null) {
+      _paymentBridge.setCardHeightListener(platformViewId, null);
+    }
     super.dispose();
   }
 
@@ -201,8 +232,12 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
           child: SizedBox(
             height: _height,
             child: CardNativeView(
+              // Native reads its config only when the view is created, so a
+              // new session or Remember Me prefill needs a new native view.
+              key: ValueKey((widget.paymentConfig, widget.cardConfig)),
               paymentConfig: widget.paymentConfig,
               cardConfig: widget.cardConfig,
+              onPlatformViewCreated: _onPlatformViewCreated,
             ),
           ),
         ),
