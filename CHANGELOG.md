@@ -1,6 +1,6 @@
 # Changelog
 
-## [1.0.0-dev19] - 2026-10-19
+## [1.0.0-dev20] - 2026-10-19
 
 ### Added
 - Remember Me in the card component: `CardConfig.rememberMe` takes a `RememberMeConfig` (optional email and phone to prefill). Checkout's own Remember Me pay button stays hidden. Leaving it `null` hides Remember Me. It also has to be enabled on the Checkout account, and the payment session needs `customer.email`.
