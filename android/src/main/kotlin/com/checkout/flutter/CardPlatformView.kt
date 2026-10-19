@@ -22,6 +22,7 @@ import com.checkout.components.interfaces.model.CardMetadata
 import com.checkout.components.interfaces.model.CardholderNamePosition
 import com.checkout.components.interfaces.model.PaymentMethodName
 import com.checkout.components.interfaces.model.PaymentSessionResponse
+import com.checkout.components.interfaces.model.Phone
 import com.checkout.components.interfaces.uicustomisation.BorderRadius
 import com.checkout.components.interfaces.uicustomisation.designtoken.ColorTokens
 import com.checkout.components.interfaces.uicustomisation.designtoken.DesignTokens
@@ -104,7 +105,6 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
                 val hasSavedCardConfig = params.containsKey("savedCardConfig")
                 val cardConfig = params["cardConfig"] as? Map<*, *>
                 val showCardholderName = cardConfig?.get("showCardholderName") as? Boolean ?: false
-                val showRememberMe = cardConfig?.get("showRememberMe") as? Boolean ?: false
 
                 // Build component callback
                 val componentCallback = createComponentCallback()
@@ -129,7 +129,8 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
                                                                         CardholderNamePosition.TOP
                                                                 else CardholderNamePosition.HIDDEN
                                                 ),
-                                        rememberMeConfiguration = null
+                                        rememberMeConfiguration =
+                                                buildRememberMeConfiguration(cardConfig)
                                 )
                         }
 
@@ -229,6 +230,29 @@ class CardPlatformView(private val activity: Activity, args: Any?, messenger: Bi
                                 Log.e(TAG, "[Flow-Card] Error: ${checkoutError.message}")
                                 sendError(checkoutError.code.toString(), checkoutError.message)
                         },
+                )
+        }
+
+        /**
+         * Reads `cardConfig.rememberMe`. Null (no key) hides Remember Me. Its own pay button stays
+         * hidden so the payment goes through Flutter's pay button and `submit()`.
+         */
+        private fun buildRememberMeConfiguration(cardConfig: Map<*, *>?): RememberMeConfiguration? {
+                val rememberMe = cardConfig?.get("rememberMe") as? Map<*, *> ?: return null
+                val phoneMap = rememberMe["phone"] as? Map<*, *>
+                val countryCode = phoneMap?.get("countryCode") as? String
+                val number = phoneMap?.get("number") as? String
+                val phone =
+                        if (countryCode != null && number != null) Phone(countryCode, number)
+                        else null
+
+                return RememberMeConfiguration(
+                        data =
+                                RememberMeConfiguration.Data(
+                                        email = rememberMe["email"] as? String,
+                                        phone = phone
+                                ),
+                        showPayButton = false
                 )
         }
 

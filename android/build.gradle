@@ -3,7 +3,7 @@ version '1.0'
 
 buildscript {
     ext.kotlin_version = '2.1.0'
-    ext.checkout_version = '1.2.0'
+    ext.checkout_version = '2.9.0'
 
     repositories {
         google()
@@ -35,7 +35,7 @@ apply plugin: 'kotlin-android'
 apply plugin: 'org.jetbrains.kotlin.plugin.compose'
 
 android {
-    compileSdk safeExtGet('compileSdkVersion', 35)
+    compileSdk safeExtGet('compileSdkVersion', 36)
 
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_11
@@ -55,7 +55,7 @@ android {
     }
 
     defaultConfig {
-        minSdk safeExtGet('minSdkVersion', 21)
+        minSdk safeExtGet('minSdkVersion', 23)
     }
 
     namespace 'com.checkout.flutter.checkout_flow_flutter_sdk'
@@ -63,7 +63,7 @@ android {
 
 dependencies {
     // Checkout.com SDK
-    implementation "com.checkout:checkout-android-components:1.2.0"
+    implementation "com.checkout:checkout-android-components:$checkout_version"
     
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk8:2.1.0"
     

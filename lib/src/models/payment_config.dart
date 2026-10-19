@@ -154,19 +154,21 @@ class FontConfig {
 class CardConfig {
   final bool showCardholderName;
   final bool enableBillingAddress;
-  final bool showRememberMe;
+
+  /// Checkout's Remember Me section under the card fields. `null` hides it.
+  final RememberMeConfig? rememberMe;
 
   const CardConfig({
     this.showCardholderName = false,
     this.enableBillingAddress = false,
-    this.showRememberMe = false,
+    this.rememberMe,
   });
 
   Map<String, dynamic> toMap() {
     return {
       'showCardholderName': showCardholderName,
       'enableBillingAddress': enableBillingAddress,
-      'showRememberMe': showRememberMe,
+      if (rememberMe != null) 'rememberMe': rememberMe!.toMap(),
     };
   }
 
@@ -177,13 +179,66 @@ class CardConfig {
           runtimeType == other.runtimeType &&
           showCardholderName == other.showCardholderName &&
           enableBillingAddress == other.enableBillingAddress &&
-          showRememberMe == other.showRememberMe;
+          rememberMe == other.rememberMe;
 
   @override
   int get hashCode =>
       showCardholderName.hashCode ^
       enableBillingAddress.hashCode ^
-      showRememberMe.hashCode;
+      rememberMe.hashCode;
+}
+
+/// Prefills Checkout's Remember Me section.
+///
+/// Remember Me also has to be enabled on the Checkout account, and the
+/// payment session request needs `customer.email` for the sign-up option to
+/// appear. These values only prefill the fields: Checkout looks returning
+/// customers up by them and sends the one-time code there.
+///
+/// Checkout's own Remember Me pay button is always hidden, so the payment
+/// stays with the app's pay button.
+class RememberMeConfig {
+  final String? email;
+
+  /// Dial code, with or without a leading `+` (`'966'` or `'+966'`).
+  final String? phoneCountryCode;
+
+  /// National number without the dial code.
+  final String? phoneNumber;
+
+  const RememberMeConfig({
+    this.email,
+    this.phoneCountryCode,
+    this.phoneNumber,
+  });
+
+  Map<String, dynamic> toMap() {
+    final email = this.email?.trim() ?? '';
+    // Checkout's mobile SDKs take digits only ('44', not '+44').
+    final countryCode = _digitsOnly(phoneCountryCode);
+    final number = _digitsOnly(phoneNumber);
+    return {
+      if (email.isNotEmpty) 'email': email,
+      if (countryCode.isNotEmpty && number.isNotEmpty)
+        'phone': {'countryCode': countryCode, 'number': number},
+    };
+  }
+
+  static String _digitsOnly(String? value) =>
+      (value ?? '').replaceAll(RegExp(r'\D'), '');
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is RememberMeConfig &&
+          runtimeType == other.runtimeType &&
+          email == other.email &&
+          phoneCountryCode == other.phoneCountryCode &&
+          phoneNumber == other.phoneNumber;
+
+  @override
+  int get hashCode =>
+      email.hashCode ^ phoneCountryCode.hashCode ^ phoneNumber.hashCode;
 }
 
 class GooglePayConfig {

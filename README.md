@@ -39,26 +39,23 @@ flutter pub get
 - **Flutter**: 3.41.0+
 - **Dart**: 3.11.0+
 - **Android**:
-  - `minSdk`: 21
-  - `compileSdk`: 35+
-  - **Kotlin**: 2.0.0+ (Required for Jetpack Compose compiler)
+  - `minSdk`: 23
+  - `compileSdk`: 36+
+  - **Android Gradle plugin**: 8.9.1+
+  - **Kotlin**: 2.1.0+ (reads the Checkout SDK's Kotlin 2.2 metadata; required for the Jetpack Compose compiler)
   - **Gradle**: Compatible with Kotlin 2.0+
 - **iOS**:
   - `iOS`: 15.0+
-  - **Xcode**: 16.0+
+  - **Xcode**: 26.2+ (Checkout Components 2.9.0 is built with Swift 6.2.3)
   - **Swift**: 6.0
   - **Architecture**: arm64 only for simulator builds
   - **Distribution**: Swift Package Manager
 
 ## Android Setup
 
-### 1. Update `build.gradle`
+### 1. Checkout.com SDK version
 
-Add the Checkout.com SDK version to your `android/gradle.properties`:
-
-```properties
-checkout_version=1.2.0
-```
+The plugin pins `checkout-android-components` 2.9.0 itself; the plugin's code depends on that version's API, so there's nothing to set in `android/gradle.properties`.
 
 ### 2. Update `AndroidManifest.xml`
 
@@ -403,7 +400,7 @@ See the `example/` directory for a complete working example.
 - Check that callbacks are properly set up
 
 ### Build errors
-- Ensure `minSdk` is at least 21
+- Ensure `minSdk` is at least 23
 - Verify all dependencies are correctly added
 - Run `flutter clean` and rebuild
 

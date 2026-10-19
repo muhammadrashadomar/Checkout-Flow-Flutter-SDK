@@ -85,6 +85,31 @@ func checkoutCardConfiguration(from params: [String: Any]) -> CheckoutSDK.CardCo
     )
 }
 
+/// Reads `cardConfig.rememberMe`. Nil (no key) hides Remember Me, which the
+/// SDK honours from 2.6.1. Its own pay button stays hidden so the payment
+/// goes through Flutter's pay button and `submit()`.
+func checkoutRememberMeConfiguration(from params: [String: Any])
+    -> CheckoutSDK.RememberMeConfiguration?
+{
+    let cardConfig = params["cardConfig"] as? [String: Any]
+    guard let rememberMe = cardConfig?["rememberMe"] as? [String: Any] else {
+        return nil
+    }
+
+    let phoneMap = rememberMe["phone"] as? [String: Any]
+    var phone: CheckoutSDK.Phone?
+    if let countryCode = phoneMap?["countryCode"] as? String,
+        let number = phoneMap?["number"] as? String
+    {
+        phone = CheckoutSDK.Phone(countryCode: countryCode, number: number)
+    }
+
+    return CheckoutSDK.RememberMeConfiguration(
+        data: .init(email: rememberMe["email"] as? String, phone: phone),
+        showPayButton: false
+    )
+}
+
 func checkoutTokenDetailsMap(_ tokenDetails: CheckoutSDK.TokenDetails) -> [String: Any] {
     var map: [String: Any] = [
         "type": tokenDetails.type.rawValue,

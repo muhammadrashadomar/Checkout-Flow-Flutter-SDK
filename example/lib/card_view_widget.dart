@@ -30,7 +30,8 @@ class _CheckoutCardViewState extends State<CheckoutCardView> {
       padding: const EdgeInsets.all(20.0),
       child: CheckoutFlowCardView(
         paymentConfig: widget.paymentConfig,
-        cardConfig: CardConfig(showRememberMe: false),
+        // Shows Remember Me when it's enabled on the Checkout account.
+        cardConfig: const CardConfig(rememberMe: RememberMeConfig()),
         loader: const Center(child: CircularProgressIndicator()),
         onReady: () {
           widget.onReady?.call();

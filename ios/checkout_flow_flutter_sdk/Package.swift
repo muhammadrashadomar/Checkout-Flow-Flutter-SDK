@@ -14,7 +14,7 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/checkout/checkout-risk-sdk-ios", from: "4.0.2")
+        .package(url: "https://github.com/checkout/checkout-risk-sdk-ios", exact: "6.0.1")
     ],
     targets: [
         .target(
@@ -34,8 +34,8 @@ let package = Package(
         .binaryTarget(
             name: "CheckoutComponentsSDK",
             url:
-                "https://github.com/checkout/checkout-ios-components/releases/download/1.8.0/CheckoutComponentsSDK.xcframework.zip",
-            checksum: "9b97ce5f673903e01a0a5566c696aaf415ea950ead60ab9598d749dd90225b94"
+                "https://github.com/checkout/checkout-ios-components/releases/download/2.9.0/CheckoutComponentsSDK.xcframework.zip",
+            checksum: "bd5e60571bfc3d9560a4823f0720463ab720ae9303cb28ac0f7f9b676645c6cd"
         ),
     ]
 )

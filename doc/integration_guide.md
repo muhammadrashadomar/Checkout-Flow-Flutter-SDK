@@ -38,17 +38,13 @@ flutter pub get
 
 ### Prerequisites
 
-- Minimum SDK: 21
-- Compile SDK: 35
+- Minimum SDK: 23
+- Compile SDK: 36
 - Kotlin: 2.1.0+
 
-### 1. Update gradle.properties
+### 1. Checkout.com SDK version
 
-Add to `android/gradle.properties`:
-
-```properties
-checkout_version=1.2.0
-```
+The plugin pins `checkout-android-components` 2.9.0 itself; the plugin's code depends on that version's API, so there's nothing to set in `android/gradle.properties`.
 
 ### 2. Update AndroidManifest.xml
 
@@ -72,10 +68,10 @@ Ensure your `android/app/build.gradle` has:
 
 ```gradle
 android {
-    compileSdk 35
+    compileSdk 36
     
     defaultConfig {
-        minSdk 21
+        minSdk 23
         targetSdk 35
     }
     
@@ -457,7 +453,7 @@ Use Checkout.com test cards:
 ### Issue: Build errors on Android
 
 **Solution:**
-1. Ensure `minSdk >= 21`
+1. Ensure `minSdk >= 23`
 2. Run `flutter clean && flutter pub get`
 3. Check Kotlin version is 2.0+
 

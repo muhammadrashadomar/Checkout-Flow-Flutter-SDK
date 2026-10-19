@@ -115,7 +115,13 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
                 self?.sendValidationState(isValid: component.isValid)
             },
             onCardBinChanged: { [weak self] metadata in
-                self?.sendCardBinChanged(metadata)
+                // Optional since Checkout 1.8.3. There's no bin to report without
+                // it, but forget the last one so the same bin is sent again later.
+                if let metadata {
+                    self?.sendCardBinChanged(metadata)
+                } else {
+                    self?.lastBin = nil
+                }
                 return .accepted
             },
             onTokenized: { [weak self] result in
@@ -149,15 +155,13 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
                     callbacks: callbacks,
                 )
                 let checkout = CheckoutSDK(configuration: configuration)
-                let cardConfig = args["cardConfig"] as? [String: Any]
-                let showRememberMe = cardConfig?["showRememberMe"] as? Bool ?? false
 
                 let component = try checkout.create(
                     .card(
                         showPayButton: false,
                         paymentButtonAction: .tokenization,
                         cardConfiguration: cardConfiguration,
-                        rememberMeConfiguration: nil
+                        rememberMeConfiguration: checkoutRememberMeConfiguration(from: args)
                     )
                 )
 

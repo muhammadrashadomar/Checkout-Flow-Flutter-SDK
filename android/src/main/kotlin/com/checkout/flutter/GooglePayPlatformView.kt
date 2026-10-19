@@ -18,6 +18,7 @@ import com.checkout.components.interfaces.component.ComponentCallback
 import com.checkout.components.interfaces.component.ComponentOption
 import com.checkout.components.interfaces.component.PaymentButtonAction
 import com.checkout.components.interfaces.error.CheckoutError
+import com.checkout.components.interfaces.error.CheckoutErrorCode
 import com.checkout.components.interfaces.model.ApiCallResult
 import com.checkout.components.interfaces.model.CallbackResult
 import com.checkout.components.interfaces.model.PaymentMethodName
@@ -191,9 +192,16 @@ class GooglePayPlatformView(
                             sendPaymentSuccess(paymentID)
                         },
                         onError = { _, error ->
-                            Log.e(TAG, "Payment error: ${error.message}")
                             isResultHandled.set(true)
-                            sendError(ErrorCode.PAYMENT_ERROR, error.message ?: "Payment failed")
+                            // Since Checkout 2.3.0 a dismissed Google Pay sheet arrives here.
+                            // It's a dismissal, not a failed payment.
+                            if (error.code == CheckoutErrorCode.PAYMENT_CANCELLED) {
+                                Log.d(TAG, "Google Pay sheet cancelled/dismissed by user")
+                                sendOnDismissed()
+                            } else {
+                                Log.e(TAG, "Payment error: ${error.message}")
+                                sendError(ErrorCode.PAYMENT_ERROR, error.message ?: "Payment failed")
+                            }
                         }
                 )
 
@@ -296,16 +304,14 @@ class GooglePayPlatformView(
     /**
      * Handle activity result from Google Pay sheet
      *
-     * @param resultCode Result code from activity
+     * `resultCode` is a Google Play `Status` code (0 = success, 16 = cancelled), not an
+     * `Activity` result code, so it isn't compared with `Activity.RESULT_CANCELED` (also 0). A
+     * dismissed sheet reaches Flutter through `onError` (`PAYMENT_CANCELLED`) instead.
+     *
+     * @param resultCode Google Play status code from the Google Pay sheet
      * @param data Optional data string from activity
      */
     private fun handleActivityResult(resultCode: Int, data: String) {
-        // Intercept cancellation event (user dismissed the Google Pay sheet)
-        if (resultCode == android.app.Activity.RESULT_CANCELED) {
-            Log.d(TAG, "Google Pay sheet cancelled/dismissed by user")
-            sendOnDismissed()
-        }
-
         try {
             if (::checkoutComponents.isInitialized) {
                 checkoutComponents.handleActivityResult(resultCode, data)

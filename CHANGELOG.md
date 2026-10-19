@@ -1,5 +1,23 @@
 # Changelog
 
+## [Unreleased]
+
+### Added
+- Remember Me in the card component: `CardConfig.rememberMe` takes a `RememberMeConfig` (optional email and phone to prefill). Checkout's own Remember Me pay button stays hidden. Leaving it `null` hides Remember Me. It also has to be enabled on the Checkout account, and the payment session needs `customer.email`.
+
+### Changed
+- Checkout Components 2.9.0 on iOS and Android (from 1.8.0 / 1.2.0), with the Remember Me fixes since then (`handleSubmit` with Remember Me cards, missing `onError` for invalid Remember Me fields, hiding Remember Me with `nil`, Android payments cancelled inside a bottom sheet).
+- iOS: Checkout Risk SDK pinned to exactly 6.0.1, as Components 2.9.0 requires. Building needs Xcode 26.2 or later (the framework is built with Swift 6.2.3).
+- Android: minimum SDK fallback 23 and compile SDK fallback 36, as Components 2.9.0 requires.
+- iOS 1.8.0's checksum no longer matched Checkout's re-published zip, so a clean package resolve failed; the 2.9.0 checksum is current.
+
+### Fixed
+- Android: since Checkout 2.3.0 a dismissed Google Pay sheet calls `onError` (`PAYMENT_CANCELLED`). It is now sent to Flutter as `onDismissed`, not as a `paymentError`.
+- Android: a successful Google Pay payment no longer also sends `onDismissed`. The activity-result check compared Google Play's status code (0 = success) with `Activity.RESULT_CANCELED` (also 0).
+
+### Removed
+- `CardConfig.showRememberMe`. Both platforms ignored it and always passed no Remember Me configuration. Use `CardConfig.rememberMe`.
+
 ## [1.0.0-dev18.3] - 2026-10-07
 
 ### Added
