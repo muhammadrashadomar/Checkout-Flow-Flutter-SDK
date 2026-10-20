@@ -332,6 +332,7 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
 /// Lays the Checkout card component out at its natural height, pinned to the
 /// top of the platform view, and reports that height as it changes. Without
 /// it the component fills Flutter's frame and centres its fields in it.
+/// Content wider than the view is shrunk to fit (see `fitScale`).
 ///
 /// Event-driven: SwiftUI re-runs the preference only on layout changes, so
 /// nothing polls. (The earlier per-frame CADisplayLink check was removed for
@@ -346,24 +347,56 @@ private struct MeasuredCardView: View {
     let content: AnyView
     let onHeightChange: (CGFloat) -> Void
 
+    /// The content's laid-out size, before any scaling.
+    @State private var contentSize: CGSize = .zero
+
     var body: some View {
-        content
-            .padding(.horizontal, Self.edgeInset)
-            .fixedSize(horizontal: false, vertical: true)
-            .background(
-                GeometryReader { proxy in
-                    Color.clear.preference(key: CardContentHeightKey.self, value: proxy.size.height)
+        GeometryReader { container in
+            let availableWidth = container.size.width
+            content
+                .padding(.horizontal, Self.edgeInset)
+                .fixedSize(horizontal: false, vertical: true)
+                .background(
+                    GeometryReader { proxy in
+                        Color.clear.preference(key: CardContentSizeKey.self, value: proxy.size)
+                    }
+                )
+                .onPreferenceChange(CardContentSizeKey.self) { size in
+                    contentSize = size
+                    onHeightChange(Self.shownHeight(of: size, in: availableWidth))
                 }
-            )
-            .onPreferenceChange(CardContentHeightKey.self, perform: onHeightChange)
-            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .top)
+                .onChange(of: availableWidth) { width in
+                    onHeightChange(Self.shownHeight(of: contentSize, in: width))
+                }
+                .scaleEffect(
+                    Self.fitScale(contentWidth: contentSize.width, availableWidth: availableWidth),
+                    anchor: .top
+                )
+                .frame(width: availableWidth, alignment: .top)
+        }
+    }
+
+    /// Below 1 only when the content is wider than the view. Checkout's
+    /// one-time-code step lays out six fixed-size boxes (about 350 pt with its
+    /// padding), wider than a card form inside a padded page, and centres the
+    /// overflow, so both ends were cut off. It is shrunk to fit instead; the
+    /// card fields fit any width and are never scaled.
+    static func fitScale(contentWidth: CGFloat, availableWidth: CGFloat) -> CGFloat {
+        guard availableWidth > 0, contentWidth > availableWidth + 0.5 else { return 1 }
+        return availableWidth / contentWidth
+    }
+
+    /// The height the content takes on screen, after any scaling.
+    static func shownHeight(of size: CGSize, in availableWidth: CGFloat) -> CGFloat {
+        size.height * fitScale(contentWidth: size.width, availableWidth: availableWidth)
     }
 }
 
-private struct CardContentHeightKey: PreferenceKey {
-    static let defaultValue: CGFloat = 0
+private struct CardContentSizeKey: PreferenceKey {
+    static let defaultValue: CGSize = .zero
 
-    static func reduce(value: inout CGFloat, nextValue: () -> CGFloat) {
-        value = max(value, nextValue())
+    static func reduce(value: inout CGSize, nextValue: () -> CGSize) {
+        let next = nextValue()
+        value = CGSize(width: max(value.width, next.width), height: max(value.height, next.height))
     }
 }

@@ -1,5 +1,10 @@
 # Changelog
 
+## [1.0.0-dev23] - 2026-10-20
+
+### Fixed
+- iOS: Remember Me's one-time-code boxes were cut off at both ends. Checkout lays out six fixed-size boxes (about 350 pt with its padding), wider than a card form inside a padded page. Content wider than the view is now shrunk to fit, anchored at the top, and the reported height is scaled to match; the card fields fit any width and are never scaled.
+
 ## [1.0.0-dev22] - 2026-10-20
 
 ### Fixed
