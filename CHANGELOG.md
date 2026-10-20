@@ -1,5 +1,13 @@
 # Changelog
 
+## [1.0.0-dev21] - 2026-10-20
+
+### Added
+- `ColorTokens.colorOutline` (the focused field's outline) and `ColorTokens.colorError` (invalid fields and their messages), passed to Checkout on iOS and Android. Without them Checkout's defaults apply, as before.
+
+### Fixed
+- Card form: the left and right field borders showed at half width. Checkout 2.x draws the fields edge to edge with the border stroked half outside the field, and the platform view clips to its bounds; the form is now inset by 1 pt (1 dp) on each side.
+
 ## [1.0.0-dev20] - 2026-10-19
 
 ### Added

@@ -28,11 +28,13 @@ func checkoutDesignTokens(from params: [String: Any]) -> CheckoutSDK.DesignToken
             action: checkoutColor(from: colorTokens["colorAction"], fallback: .brightBlue),
             background: checkoutColor(from: colorTokens["colorBackground"], fallback: .white),
             border: checkoutColor(from: colorTokens["colorBorder"], fallback: .softGray),
+            error: checkoutColor(from: colorTokens["colorError"], fallback: .deepRed),
             formBackground: checkoutColor(from: colorTokens["colorBackground"], fallback: .white),
             formBorder: checkoutColor(
                 from: colorTokens["colorFormBorder"] ?? colorTokens["colorBorder"],
                 fallback: .mediumGray
             ),
+            outline: checkoutColor(from: colorTokens["colorOutline"], fallback: .lightBlue),
             primary: checkoutColor(from: colorTokens["colorPrimary"], fallback: .black)
         ),
         borderButtonRadius: .init(radius: borderRadius),

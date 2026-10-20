@@ -85,8 +85,16 @@ class ColorTokens {
   final int? colorAction;
   final int? colorPrimary;
   final int? colorBorder;
+
+  /// Border of the input fields at rest.
   final int? colorFormBorder;
   final int? colorBackground;
+
+  /// Outline of the focused input field. Checkout's default is a light blue.
+  final int? colorOutline;
+
+  /// Invalid fields and their messages. Checkout's default is a deep red.
+  final int? colorError;
 
   const ColorTokens({
     this.colorAction,
@@ -94,6 +102,8 @@ class ColorTokens {
     this.colorBorder,
     this.colorFormBorder,
     this.colorBackground,
+    this.colorOutline,
+    this.colorError,
   });
 
   Map<String, dynamic> toMap() {
@@ -103,6 +113,8 @@ class ColorTokens {
       if (colorBorder != null) 'colorBorder': colorBorder,
       if (colorFormBorder != null) 'colorFormBorder': colorFormBorder,
       if (colorBackground != null) 'colorBackground': colorBackground,
+      if (colorOutline != null) 'colorOutline': colorOutline,
+      if (colorError != null) 'colorError': colorError,
     };
   }
 
@@ -115,15 +127,20 @@ class ColorTokens {
           colorPrimary == other.colorPrimary &&
           colorBorder == other.colorBorder &&
           colorFormBorder == other.colorFormBorder &&
-          colorBackground == other.colorBackground;
+          colorBackground == other.colorBackground &&
+          colorOutline == other.colorOutline &&
+          colorError == other.colorError;
 
   @override
-  int get hashCode =>
-      colorAction.hashCode ^
-      colorPrimary.hashCode ^
-      colorBorder.hashCode ^
-      colorFormBorder.hashCode ^
-      colorBackground.hashCode;
+  int get hashCode => Object.hash(
+    colorAction,
+    colorPrimary,
+    colorBorder,
+    colorFormBorder,
+    colorBackground,
+    colorOutline,
+    colorError,
+  );
 }
 
 class FontConfig {

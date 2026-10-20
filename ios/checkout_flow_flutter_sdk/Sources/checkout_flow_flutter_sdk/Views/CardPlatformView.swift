@@ -330,11 +330,18 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
 /// nothing polls. (The earlier per-frame CADisplayLink check was removed for
 /// that cost, and it also kept the view alive.)
 private struct MeasuredCardView: View {
+    /// Checkout 2.x draws its fields edge to edge, and a field border is
+    /// stroked on the field's edge, half outside it. The container clips to
+    /// its bounds (native drawing outside the frame lands on top of Flutter
+    /// UI), so without this inset the side borders show at half width.
+    private static let edgeInset: CGFloat = 1
+
     let content: AnyView
     let onHeightChange: (CGFloat) -> Void
 
     var body: some View {
         content
+            .padding(.horizontal, Self.edgeInset)
             .fixedSize(horizontal: false, vertical: true)
             .background(
                 GeometryReader { proxy in

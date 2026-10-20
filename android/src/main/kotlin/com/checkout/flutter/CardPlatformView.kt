@@ -6,10 +6,12 @@ import android.os.Looper
 import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.ComposeView
 import com.checkout.components.core.CheckoutComponentsFactory
 import com.checkout.components.interfaces.Environment
@@ -189,7 +191,10 @@ class CardPlatformView(
                                                 val composeView = ComposeView(activity)
                                                 composeView.setContent {
                                                         // Natural height, pinned to the top, reported to
-                                                        // Flutter so the platform view can match it.
+                                                        // Flutter so the platform view can match it. The
+                                                        // 1dp side inset keeps the edge-to-edge fields'
+                                                        // borders (stroked half outside the field) inside
+                                                        // the clipped view.
                                                         Box(
                                                                 modifier =
                                                                         Modifier.fillMaxWidth()
@@ -202,6 +207,7 @@ class CardPlatformView(
                                                                                                 size.height
                                                                                         )
                                                                                 }
+                                                                                .padding(horizontal = 1.dp)
                                                         ) { cardComponent.Render() }
                                                 }
                                                 container.addView(composeView)
@@ -357,7 +363,14 @@ class CardPlatformView(
                                                         ?.toLong()
                                                         ?: 0XFF111111,
                                         colorInverse = 0xFFFFFFFF,
-                                        colorOutline = 0XFFB1B1B1,
+                                        colorOutline =
+                                                (colorTokensMap?.get("colorOutline") as? Number)
+                                                        ?.toLong()
+                                                        ?: 0XFFB1B1B1,
+                                        colorError =
+                                                (colorTokensMap?.get("colorError") as? Number)
+                                                        ?.toLong()
+                                                        ?: 0XFFAD283E,
                                         colorScrolledContainer = 0XFFE8E6E6
                                 ),
                         borderButtonRadius = BorderRadius(all = borderRadius),
