@@ -4,9 +4,10 @@ import SwiftUI
 import UIKit
 
 final class CardPlatformView: NSObject, FlutterPlatformView {
-    /// Height reports are coalesced to one per this interval while the form
-    /// animates (Remember Me expanding, for example); the last height always
-    /// goes out.
+    /// Height reports go out at most once per this interval while the form
+    /// animates (Remember Me expanding, for example). The first change goes
+    /// out at once, so Flutter starts following it on the next frame, and the
+    /// last height always goes out.
     private static let heightReportInterval: TimeInterval = 0.05
 
     private let channel: FlutterMethodChannel
@@ -22,6 +23,8 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     private var lastBin: String?
     private var lastReportedHeight: CGFloat = 0
     private var pendingHeight: CGFloat?
+    private var isHeightReportScheduled = false
+    private var lastHeightReportTime: CFTimeInterval = 0
 
     init(
         frame: CGRect,
@@ -240,14 +243,18 @@ final class CardPlatformView: NSObject, FlutterPlatformView {
     // MARK: - Height
 
     private func scheduleHeightReport(_ height: CGFloat) {
-        let isScheduled = pendingHeight != nil
         pendingHeight = height
-        guard !isScheduled else { return }
+        guard !isHeightReportScheduled else { return }
 
-        DispatchQueue.main.asyncAfter(deadline: .now() + Self.heightReportInterval) {
-            [weak self] in
-            guard let self, let height = self.pendingHeight else { return }
+        isHeightReportScheduled = true
+        let sinceLastReport = CACurrentMediaTime() - lastHeightReportTime
+        let delay = max(0, Self.heightReportInterval - sinceLastReport)
+        DispatchQueue.main.asyncAfter(deadline: .now() + delay) { [weak self] in
+            guard let self else { return }
+            self.isHeightReportScheduled = false
+            guard let height = self.pendingHeight else { return }
             self.pendingHeight = nil
+            self.lastHeightReportTime = CACurrentMediaTime()
             self.sendHeight(height)
         }
     }

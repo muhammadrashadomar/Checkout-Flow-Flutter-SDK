@@ -3,6 +3,7 @@ package com.checkout.flutter
 import android.app.Activity
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -73,14 +74,18 @@ class CardPlatformView(
         // Main thread only (Compose layout and the main-dispatcher scope).
         private var lastReportedHeightDp = 0
         private var pendingHeightPx: Int? = null
+        private var isHeightReportScheduled = false
+        private var lastHeightReportAtMs = 0L
 
         companion object {
                 private const val TAG = "CardPlatformView"
                 private const val CHANNEL_NAME = "checkout_bridge"
 
                 /**
-                 * Height reports are coalesced to one per this interval while the form animates
-                 * (Remember Me expanding, for example); the last height always goes out.
+                 * Height reports go out at most once per this interval while the form animates
+                 * (Remember Me expanding, for example). The first change goes out at once, so
+                 * Flutter starts following it on the next frame, and the last height always goes
+                 * out.
                  */
                 private const val HEIGHT_REPORT_INTERVAL_MS = 50L
 
@@ -289,14 +294,17 @@ class CardPlatformView(
         }
 
         private fun scheduleHeightReport(heightPx: Int) {
-                val isScheduled = pendingHeightPx != null
                 pendingHeightPx = heightPx
-                if (isScheduled) return
+                if (isHeightReportScheduled) return
 
+                isHeightReportScheduled = true
+                val sinceLastReportMs = SystemClock.uptimeMillis() - lastHeightReportAtMs
                 scope.launch {
-                        delay(HEIGHT_REPORT_INTERVAL_MS)
+                        delay((HEIGHT_REPORT_INTERVAL_MS - sinceLastReportMs).coerceAtLeast(0L))
+                        isHeightReportScheduled = false
                         val latestHeightPx = pendingHeightPx ?: return@launch
                         pendingHeightPx = null
+                        lastHeightReportAtMs = SystemClock.uptimeMillis()
                         sendHeight(latestHeightPx)
                 }
         }

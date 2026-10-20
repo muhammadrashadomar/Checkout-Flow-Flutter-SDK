@@ -1,5 +1,11 @@
 # Changelog
 
+## [1.0.0-dev22] - 2026-10-20
+
+### Fixed
+- The card form expands and collapses smoothly (Remember Me, validation messages). The native view is no longer resized as the form changes height: on Android each resize showed the form stretched for a frame. It keeps 400 pt of spare room below the fields (`CardFormHeights`), and `CheckoutFlowCardView` animates a clipped window over it with Flutter's text-field timing (167 ms, `fastOutSlowIn`). It grows only when the form outgrows that room.
+- Height reports go out at once on the first change, then at most every 50 ms, so the form starts following on the next frame.
+
 ## [1.0.0-dev21] - 2026-10-20
 
 ### Added

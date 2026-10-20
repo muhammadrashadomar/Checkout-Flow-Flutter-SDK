@@ -1,4 +1,5 @@
 import 'package:checkout_flow_flutter_sdk/checkout_flow_flutter_sdk.dart';
+import 'package:checkout_flow_flutter_sdk/src/widgets/card_form_heights.dart';
 import 'package:flutter/material.dart';
 
 /// CheckoutFlowCardView - Complete card payment widget with all callbacks
@@ -94,19 +95,24 @@ class CheckoutFlowCardView extends StatefulWidget {
 
 class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
   /// Height changes smaller than this are ignored, so sub-pixel layout noise
-  /// doesn't resize the platform view.
+  /// doesn't move the form.
   static const double _minHeightChange = 1;
+
+  /// How the visible height follows the form: the timing of Flutter's own
+  /// text fields (`InputDecorator`), so the card fields move like them.
+  static const Duration _heightAnimationDuration = Duration(milliseconds: 167);
+  static const Curve _heightAnimationCurve = Curves.fastOutSlowIn;
 
   bool _isReady = false;
   bool _isFailed = false;
-  late double _height;
+  late CardFormHeights _heights;
   int? _platformViewId;
   final PaymentBridge _paymentBridge = PaymentBridge();
 
   @override
   void initState() {
     super.initState();
-    _height = widget.height;
+    _heights = CardFormHeights.initial(widget.height);
     _paymentBridge.initialize();
     _setupCallbacks();
   }
@@ -136,8 +142,8 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
 
   void _onNativeHeight(double height) {
     if (!mounted || height <= 0) return;
-    if ((height - _height).abs() < _minHeightChange) return;
-    setState(() => _height = height);
+    if ((height - _heights.visible).abs() < _minHeightChange) return;
+    setState(() => _heights = _heights.withContentHeight(height));
     widget.onHeightChanged?.call(height);
   }
 
@@ -228,16 +234,35 @@ class _CheckoutFlowCardViewState extends State<CheckoutFlowCardView> {
     return Stack(
       alignment: Alignment.topCenter,
       children: [
-        RepaintBoundary(
-          child: SizedBox(
-            height: _height,
-            child: CardNativeView(
-              // Native reads its config only when the view is created, so a
-              // new session or Remember Me prefill needs a new native view.
-              key: ValueKey((widget.paymentConfig, widget.cardConfig)),
-              paymentConfig: widget.paymentConfig,
-              cardConfig: widget.cardConfig,
-              onPlatformViewCreated: _onPlatformViewCreated,
+        // The native view stays at `_heights.native` (see CardFormHeights);
+        // only the clipped window over it animates. Its box is also the hit
+        // area, so the hidden room below the fields takes no taps.
+        TweenAnimationBuilder<double>(
+          tween: Tween<double>(end: _heights.visible),
+          duration: _heightAnimationDuration,
+          curve: _heightAnimationCurve,
+          child: RepaintBoundary(
+            child: SizedBox(
+              height: _heights.native,
+              child: CardNativeView(
+                // Native reads its config only when the view is created, so a
+                // new session or Remember Me prefill needs a new native view.
+                key: ValueKey((widget.paymentConfig, widget.cardConfig)),
+                paymentConfig: widget.paymentConfig,
+                cardConfig: widget.cardConfig,
+                onPlatformViewCreated: _onPlatformViewCreated,
+              ),
+            ),
+          ),
+          builder: (context, visibleHeight, nativeView) => ClipRect(
+            child: SizedBox(
+              height: visibleHeight,
+              child: OverflowBox(
+                alignment: Alignment.topCenter,
+                minHeight: _heights.native,
+                maxHeight: _heights.native,
+                child: nativeView,
+              ),
             ),
           ),
         ),
